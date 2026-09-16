@@ -186,6 +186,51 @@
           "description": "Full 360-degree acoustic sphere recording in the Perth Hills. Multi-directional canopy movement, localized bird calls, and lateral cicada choruses decoded to binaural in real time."
         }
       }
+    },
+    {
+      "type": "Feature",
+      "id": "zone_swan_estuary_habitat_06",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [115.8540, -31.9560],
+            [115.8660, -31.9560],
+            [115.8680, -31.9510],
+            [115.8620, -31.9480],
+            [115.8530, -31.9510],
+            [115.8540, -31.9560]
+          ]
+        ]
+      },
+      "properties": {
+        "title": "Swan Estuary Riparian Habitat Zone",
+        "recordist": "Perth Sound Ecology Network",
+        "timestamp": "2026-04-15T08:00:00Z",
+        "synthType": "water",
+        "audio": {
+          "format": "audio/synthetic",
+          "duration": 360.0,
+          "channels": 2,
+          "sampleRate": 48000,
+          "channelFormat": "stereo",
+          "micConfiguration": "Multi-point Ecological Array"
+        },
+        "spatialPlayback": {
+          "triggerType": "polygon_geofence",
+          "radiusMeters": 45,
+          "rolloff": "exponential",
+          "loop": true,
+          "attenuationMaxDb": -50
+        },
+        "archival": {
+          "license": "CC-BY-SA 4.0",
+          "taxonomies": ["biophony", "geophony"],
+          "weather": "Sunny, 20°C, 8 km/h S breeze",
+          "equipment": "Distributed Sound Devices Arrays",
+          "description": "Continuous ambient riparian acoustic habitat covering the Swan River shoreline. Seamlessly crossfades with focal dawn chorus and hydrophone nodes."
+        }
+      }
     }
   ]
 }

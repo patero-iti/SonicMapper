@@ -150,4 +150,122 @@ export class GeoEngine {
     const smoothed = prevHeading + diff * alpha;
     return ((smoothed % 360) + 360) % 360;
   }
+
+  /**
+   * Ray-casting algorithm to test if a [lng, lat] point is inside a GeoJSON Polygon ring.
+   * @param {[number, number]} point - [lng, lat]
+   * @param {Array<Array<number>>} ring - Array of [lng, lat] vertices
+   * @returns {boolean}
+   */
+  static isPointInRing(point, ring) {
+    if (!ring || ring.length < 3) return false;
+    const [x, y] = point;
+    let inside = false;
+
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1];
+      const xj = ring[j][0], yj = ring[j][1];
+
+      const intersect = ((yi > y) !== (yj > y)) &&
+        (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+
+    return inside;
+  }
+
+  /**
+   * Tests if point is inside a GeoJSON Polygon or MultiPolygon geometry.
+   * Supports exterior rings and hole exclusion.
+   * @param {[number, number]} point - [lng, lat]
+   * @param {Array} coords - GeoJSON Polygon (Array of rings) or MultiPolygon coordinates
+   * @returns {boolean}
+   */
+  static isPointInPolygon(point, coords) {
+    if (!coords || !Array.isArray(coords) || coords.length === 0) return false;
+
+    // Check if MultiPolygon: coords is Array of Polygons
+    if (Array.isArray(coords[0]) && Array.isArray(coords[0][0]) && Array.isArray(coords[0][0][0])) {
+      return coords.some(poly => this.isPointInPolygon(point, poly));
+    }
+
+    // Standard Polygon: coords[0] is outer ring, coords[1..n] are holes
+    const outerRing = coords[0];
+    if (!this.isPointInRing(point, outerRing)) return false;
+
+    // Ensure not inside any inner hole
+    for (let h = 1; h < coords.length; h++) {
+      if (this.isPointInRing(point, coords[h])) {
+        return false; // inside a hole
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Calculates the geometric centroid [lng, lat] of a polygon's exterior ring.
+   * @param {Array} coords - GeoJSON Polygon coordinates
+   * @returns {[number, number]} [lng, lat] centroid
+   */
+  static getPolygonCentroid(coords) {
+    if (!coords || coords.length === 0) return [115.8605, -31.9505];
+    const ring = Array.isArray(coords[0][0]) ? coords[0] : coords;
+    let sumLng = 0;
+    let sumLat = 0;
+    const len = ring.length;
+
+    for (let i = 0; i < len; i++) {
+      sumLng += ring[i][0];
+      sumLat += ring[i][1];
+    }
+
+    return [sumLng / len, sumLat / len];
+  }
+
+  /**
+   * Calculates minimum distance in meters from a point to the nearest edge of a polygon.
+   * @param {[number, number]} point - [lng, lat]
+   * @param {Array} coords - GeoJSON Polygon coordinates
+   * @returns {number} Distance in meters
+   */
+  static distanceToPolygon(point, coords) {
+    if (this.isPointInPolygon(point, coords)) return 0;
+
+    const ring = Array.isArray(coords[0][0]) ? coords[0] : coords;
+    let minDistance = Infinity;
+
+    for (let i = 0; i < ring.length - 1; i++) {
+      const p1 = ring[i];
+      const p2 = ring[i + 1];
+      const dist = this.distanceToSegment(point, p1, p2);
+      if (dist < minDistance) {
+        minDistance = dist;
+      }
+    }
+
+    return minDistance;
+  }
+
+  /**
+   * Calculates distance in meters from a point to a line segment [p1, p2]
+   */
+  static distanceToSegment(p, p1, p2) {
+    const x = p[0], y = p[1];
+    const x1 = p1[0], y1 = p1[1];
+    const x2 = p2[0], y2 = p2[1];
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+
+    if (dx === 0 && dy === 0) {
+      return this.getDistance(p, p1);
+    }
+
+    // Parameter t of projected point onto line segment
+    const t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy)));
+    const proj = [x1 + t * dx, y1 + t * dy];
+
+    return this.getDistance(p, proj);
+  }
 }

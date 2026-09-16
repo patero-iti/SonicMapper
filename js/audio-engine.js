@@ -76,10 +76,16 @@ export class AudioEngine {
     if (this.soundNodes.has(id)) return this.soundNodes.get(id);
 
     const props = feature.properties;
-    const coords = feature.geometry.coordinates;
-    const radius = props.spatialPlayback?.radiusMeters || 60;
+    const geomType = feature.geometry?.type || 'Point';
+    const isPolygon = geomType === 'Polygon' || geomType === 'MultiPolygon';
+    const polygonCoords = isPolygon ? feature.geometry.coordinates : null;
+    const coords = isPolygon
+      ? GeoEngine.getPolygonCentroid(feature.geometry.coordinates)
+      : (feature.geometry?.coordinates || [115.8605, -31.9505]);
+
+    const radius = props.spatialPlayback?.radiusMeters || (isPolygon ? 50 : 60);
     const rolloff = props.spatialPlayback?.rolloff || 'exponential';
-    const synthType = props.synthType || (props.audio?.url ? null : 'birdsong');
+    const synthType = props.synthType || (props.audio?.url ? null : (isPolygon ? 'water' : 'birdsong'));
 
     const channelFormat = props.audio?.channelFormat || props.channelFormat || 'stereo';
     const channels = props.audio?.channels || (channelFormat.includes('ambisonic') ? 4 : 2);
@@ -89,6 +95,8 @@ export class AudioEngine {
       id,
       feature,
       coords,
+      isPolygon,
+      polygonCoords,
       radius,
       rolloff,
       synthType,
@@ -594,34 +602,53 @@ export class AudioEngine {
         continue;
       }
 
-      // Proximity Distance Calculation
-      const dist = GeoEngine.getDistance(this.listenerPosition, sound.coords);
-      sound.currentDistance = dist;
-
-      // Acoustic Hysteresis: Entry at radius, exit buffer at radius * 1.08 (+5m buffer)
-      const exitRadius = sound.radius + Math.max(4, sound.radius * 0.08);
-      const isAudible = sound.isAudible
-        ? dist < exitRadius
-        : dist <= sound.radius;
-
-      sound.isAudible = isAudible;
-
+      // Proximity Distance & Gain Calculation (Point Radius vs Polygon Habitat)
+      let dist = 0;
       let gain = 0;
-      if (isAudible) {
-        const effectiveMax = sound.isAudible && dist > sound.radius ? exitRadius : sound.radius;
-        const norm = Math.max(0, 1 - dist / effectiveMax); // 1 at center, 0 at boundary
-        if (sound.rolloff === 'exponential') {
-          gain = Math.pow(norm, 2.0);
+      let refCoords = sound.coords;
+
+      if (sound.isPolygon && sound.polygonCoords) {
+        const isInside = GeoEngine.isPointInPolygon(this.listenerPosition, sound.polygonCoords);
+        if (isInside) {
+          dist = 0;
+          gain = 1.0;
+          sound.isAudible = true;
         } else {
-          gain = norm; // Linear
+          dist = GeoEngine.distanceToPolygon(this.listenerPosition, sound.polygonCoords);
+          const fadeBuffer = sound.radius || 50; // Buffer distance outside polygon before full silence
+          if (dist < fadeBuffer) {
+            const norm = 1 - dist / fadeBuffer;
+            gain = Math.pow(norm, 1.8);
+            sound.isAudible = true;
+          } else {
+            gain = 0;
+            sound.isAudible = false;
+          }
+        }
+      } else {
+        // Standard Point Source with Acoustic Hysteresis
+        dist = GeoEngine.getDistance(this.listenerPosition, sound.coords);
+        const exitRadius = sound.radius + Math.max(4, sound.radius * 0.08);
+        const isAudible = sound.isAudible ? dist < exitRadius : dist <= sound.radius;
+        sound.isAudible = isAudible;
+
+        if (isAudible) {
+          const effectiveMax = sound.isAudible && dist > sound.radius ? exitRadius : sound.radius;
+          const norm = Math.max(0, 1 - dist / effectiveMax); // 1 at center, 0 at boundary
+          if (sound.rolloff === 'exponential') {
+            gain = Math.pow(norm, 2.0);
+          } else {
+            gain = norm; // Linear
+          }
         }
       }
 
+      sound.currentDistance = dist;
       sound.currentGain = gain;
 
       if (sound.isAmbisonic && sound.ambisonicDecoder) {
         // Calculate bearing and relative yaw rotation for Ambisonic soundfield
-        const bearing = GeoEngine.getBearing(this.listenerPosition, sound.coords);
+        const bearing = GeoEngine.getBearing(this.listenerPosition, refCoords);
         const relAngle = ((bearing - this.listenerHeading + 540) % 360) - 180;
         sound.ambisonicDecoder.setRotation(relAngle);
         sound.ambisonicDecoder.setGain(gain);
@@ -629,8 +656,9 @@ export class AudioEngine {
         sound.gainNode.gain.setTargetAtTime(gain, now, timeConstant);
 
         // Standard Stereo Panning based on angle between listener and source
-        if (sound.pannerNode && dist < exitRadius * 1.5) {
-          const bearing = GeoEngine.getBearing(this.listenerPosition, sound.coords);
+        const maxPanDist = sound.isPolygon ? 150 : (sound.radius * 1.5);
+        if (sound.pannerNode && dist < maxPanDist) {
+          const bearing = GeoEngine.getBearing(this.listenerPosition, refCoords);
           const relAngle = ((bearing - this.listenerHeading + 540) % 360) - 180;
           const panValue = Math.sin((relAngle * Math.PI) / 180);
           sound.pannerNode.pan.setTargetAtTime(panValue, now, timeConstant);

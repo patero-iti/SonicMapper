@@ -542,10 +542,8 @@ body:not(.pin-drop-mode) .pin-drop-banner {
   width: 28px;
 }
 
-/* Cross-browser Vertical Range Slider */
+/* Cross-browser Vertical Range Slider using W3C standard writing-mode */
 .vertical-volume-slider {
-  -webkit-appearance: slider-vertical;
-  appearance: slider-vertical;
   writing-mode: vertical-lr;
   direction: rtl;
   width: 6px;
@@ -554,6 +552,7 @@ body:not(.pin-drop-mode) .pin-drop-banner {
   border-radius: 4px;
   outline: none;
   cursor: pointer;
+  accent-color: var(--brand-hot-pink);
 }
 
 .vertical-volume-slider::-webkit-slider-thumb {
@@ -903,15 +902,61 @@ body:not(.pin-drop-mode) .pin-drop-banner {
   color: var(--brand-black);
 }
 
+/* Visualizer Header & Mode Switcher */
+.visualizer-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.visualizer-label-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 800;
+  color: var(--brand-hot-pink);
+}
+
+.visualizer-mode-pills {
+  display: flex;
+  gap: 4px;
+}
+
+.vis-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vis-pill:hover {
+  color: #fff;
+  background: rgba(232, 59, 178, 0.15);
+}
+
+.vis-pill.active {
+  background: var(--brand-hot-pink);
+  border-color: var(--brand-hot-pink);
+  color: var(--brand-black);
+  font-weight: 800;
+}
+
 /* Visualizer Canvas */
 .visualizer-container {
   width: 100%;
-  height: 70px;
-  background: rgba(18, 9, 14, 0.6);
+  height: 85px;
+  background: rgba(18, 9, 14, 0.75);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   position: relative;
   overflow: hidden;
+  margin-bottom: 14px;
 }
 
 #visualizer-canvas {

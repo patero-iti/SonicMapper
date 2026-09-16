@@ -1,20 +1,20 @@
 {
   "name": "SonicMapper",
-  "version": "0.4.0",
-  "stage": "Phase 2: Mobile Integration, Heading Orientation & Field Soundwalks",
+  "version": "0.5.0",
+  "stage": "Phase 3: Sound Art & Archival Tooling",
   "buildDate": "2026-09-16",
-  "commit": "phase-2-mobile-orientation-soundwalks",
+  "commit": "phase-3-sound-art-archival-tooling",
   "features": [
-    "Hardware Compass Magnetometer Orientation (DeviceOrientationEvent & iOS Permission Flow)",
-    "Real-Time 360° Ambisonic FOA Soundfield Yaw Rotation tied to Listener Head Orientation",
-    "Dynamic Cartographic Heading Cone & Directional Flashlight Beam on Listener Marker",
-    "Adaptive GPS Jitter Smoothing & Drift Filter (Exponential Moving Average Interpolation)",
-    "Acoustic Hysteresis Proximity Thresholds to Eliminate Boundary Hover Audio Fluttering",
-    "Screen Wake Lock API to prevent phone display sleep during outdoor field soundwalks",
-    "Media Session API Integration for mobile lock screen metadata and audio controls",
-    "Slide-over Burger Navigation Menu (Sound Marker Management, GPS Modes, Theme Switcher, Radar Toggle)",
-    "Lower-Left Vertical Master Spatial Volume Slider with Quick-Mute Toggle & Dynamic Readout",
-    "Interactive Sound Marker Editing Modal with Drag-and-Drop Pin Relocation",
-    "Real-Time Waveform & FFT Visualizer Drawer"
+    "Native GeoJSON Polygon Geofence Zones (Wetlands & River Estuary Shorelines)",
+    "Point-in-Polygon Ray-Casting & Exterior Buffer Distance Attenuation Calculations",
+    "Multi-Track Spatial Crossfading Matrix for Overlapping Habitats and Point Sources",
+    "Multi-Mode Real-Time Visualizer (Oscilloscope Waveform, FFT Spectrum Bars, 2D Spectrogram Waterfall)",
+    "Radio DADAA 4-Tier Spectrogram Colormap (Dark Plum, Magenta, Hot Pink, Bright White)",
+    "Archival Audio Asset Downloader (Direct Blob Retrieval, Remote Media & 16-Bit PCM WAV Bounce Synthesis)",
+    "Hardware Compass Magnetometer Orientation & 360° FOA Yaw Soundfield Matrix",
+    "Dynamic Heading Cone & Flashlight Beam on Listener Pin",
+    "Mobile Sensor Jitter Filter, Acoustic Hysteresis Buffers & Screen Wake Lock API",
+    "Slide-Over Burger Navigation Menu & Lower-Left Vertical Spatial Volume HUD",
+    "Sound Marker Drag-and-Drop Relocation & Interactive Archival Metadata Editing"
   ]
 }
