@@ -1,0 +1,191 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "title": "Perth Wetland & Urban Soundscape Study",
+    "region": "Perth, Western Australia",
+    "curator": "SonicMapper Archival Project",
+    "version": "0.3.0"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "rec_swan_wetlands_01",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8605, -31.9505]
+      },
+      "properties": {
+        "title": "Swan River Wetlands Dawn Chorus",
+        "recordist": "Acoustic Ecology Lab",
+        "timestamp": "2026-04-12T06:15:00Z",
+        "synthType": "birdsong",
+        "audio": {
+          "format": "audio/synthetic",
+          "duration": 184.2,
+          "channels": 2,
+          "sampleRate": 48000,
+          "channelFormat": "binaural",
+          "micConfiguration": "In-ear Binaural Omni Pair (Soundman OKM II)"
+        },
+        "spatialPlayback": {
+          "triggerType": "proximity",
+          "radiusMeters": 65,
+          "rolloff": "exponential",
+          "loop": true,
+          "attenuationMaxDb": -60
+        },
+        "archival": {
+          "license": "CC-BY-SA 4.0",
+          "taxonomies": ["biophony"],
+          "weather": "Clear, 17°C, 3 km/h ESE wind",
+          "equipment": "Zoom F6 + OKM II Classic",
+          "description": "Dense wetland biophony featuring Australian Honeyeaters, distant Red-capped Parrots, and water ripples."
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "rec_fremantle_swell_02",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8575, -31.9535]
+      },
+      "properties": {
+        "title": "Coastal Swell & Estuary Water Flow",
+        "recordist": "Field Recordist Group",
+        "timestamp": "2026-04-10T14:30:00Z",
+        "synthType": "water",
+        "audio": {
+          "format": "audio/synthetic",
+          "duration": 210.0,
+          "channels": 2,
+          "sampleRate": 48000,
+          "channelFormat": "stereo",
+          "micConfiguration": "Dual Aquarian Audio H2a Hydrophones"
+        },
+        "spatialPlayback": {
+          "triggerType": "proximity",
+          "radiusMeters": 80,
+          "rolloff": "exponential",
+          "loop": true,
+          "attenuationMaxDb": -50
+        },
+        "archival": {
+          "license": "CC-BY 4.0",
+          "taxonomies": ["geophony", "hydrophony"],
+          "weather": "Scattered cloud, 22°C, 15 km/h SW breeze",
+          "equipment": "Sound Devices MixPre-6 II",
+          "description": "Rhythmic low-frequency underwater swell and surface water lapping against tidal limestone."
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "rec_kings_park_wind_03",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8640, -31.9470]
+      },
+      "properties": {
+        "title": "Canopy Wind & Eucalyptus Rustle",
+        "recordist": "Bioacoustic Survey Team",
+        "timestamp": "2026-03-28T11:00:00Z",
+        "synthType": "wind",
+        "audio": {
+          "format": "audio/synthetic",
+          "duration": 195.5,
+          "channels": 2,
+          "sampleRate": 96000,
+          "channelFormat": "stereo",
+          "micConfiguration": "ORTF Pair (Rode NT5s)"
+        },
+        "spatialPlayback": {
+          "triggerType": "proximity",
+          "radiusMeters": 90,
+          "rolloff": "linear",
+          "loop": true,
+          "attenuationMaxDb": -45
+        },
+        "archival": {
+          "license": "CC-BY-NC 4.0",
+          "taxonomies": ["geophony"],
+          "weather": "Sunny, 26°C, gusting up to 28 km/h",
+          "equipment": "Zoom F8n Pro + ORTF Mount",
+          "description": "Broadband gusts through Marri and Jarrah tree canopies with delicate leaf flutter."
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "rec_urban_perth_transit_04",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8625, -31.9540]
+      },
+      "properties": {
+        "title": "Metropolitan Rail & City Resonance",
+        "recordist": "Urban Sound Studies",
+        "timestamp": "2026-04-05T17:45:00Z",
+        "synthType": "urban",
+        "audio": {
+          "format": "audio/synthetic",
+          "duration": 160.0,
+          "channels": 2,
+          "sampleRate": 48000,
+          "channelFormat": "stereo",
+          "micConfiguration": "Sennheiser MKH 418S M/S Stereo"
+        },
+        "spatialPlayback": {
+          "triggerType": "proximity",
+          "radiusMeters": 50,
+          "rolloff": "exponential",
+          "loop": true,
+          "attenuationMaxDb": -60
+        },
+        "archival": {
+          "license": "CC-BY-SA 4.0",
+          "taxonomies": ["anthropophony"],
+          "weather": "Overcast, 20°C",
+          "equipment": "Sony PCM-D100",
+          "description": "Electrified commuter transit braking, metallic track resonance, and ambient footsteps."
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "rec_perth_hills_foa_05",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8550, -31.9480]
+      },
+      "properties": {
+        "title": "Perth Hills Dry Sclerophyll Ambisonic Soundfield",
+        "recordist": "Spatial Audio Research Lab",
+        "timestamp": "2026-04-14T09:30:00Z",
+        "synthType": "ambisonic_field",
+        "audio": {
+          "format": "audio/ambisonic",
+          "duration": 240.0,
+          "channels": 4,
+          "sampleRate": 96000,
+          "channelFormat": "ambisonic_ambix",
+          "micConfiguration": "Sennheiser AMBEO VR (1st-Order Ambisonics AmbiX: W, Y, Z, X)"
+        },
+        "spatialPlayback": {
+          "triggerType": "proximity",
+          "radiusMeters": 75,
+          "rolloff": "exponential",
+          "loop": true,
+          "attenuationMaxDb": -60
+        },
+        "archival": {
+          "license": "CC-BY-SA 4.0",
+          "taxonomies": ["biophony", "geophony"],
+          "weather": "Clear, 24°C, light thermal updrafts",
+          "equipment": "Zoom F6 + Sennheiser AMBEO VR Mic",
+          "description": "Full 360-degree acoustic sphere recording in the Perth Hills. Multi-directional canopy movement, localized bird calls, and lateral cicada choruses decoded to binaural in real time."
+        }
+      }
+    }
+  ]
+}

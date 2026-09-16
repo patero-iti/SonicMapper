@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SonicMapper - Sound Art & Acoustic Cartography</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='25' fill='%23231218'/%3E%3Ccircle cx='50' cy='50' r='35' fill='none' stroke='%23e83bb2' stroke-width='10'/%3E%3Ccircle cx='50' cy='50' r='14' fill='%23e83bb2'/%3E%3C/svg%3E" />
+
+  <!-- MapLibre GL CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Map Canvas Container -->
+    <div id="map-container"></div>
+
+    <!-- Pin Drop Helper Banner -->
+    <div class="pin-drop-banner">
+      <span>📍 Click anywhere on the map to place your sound marker</span>
+      <button id="btn-cancel-drop" class="btn-cancel-banner">Cancel</button>
+    </div>
+
+    <!-- Pin Relocate Helper Banner -->
+    <div id="pin-relocate-banner" class="pin-relocate-banner" style="display: none;">
+      <span>📍 Click anywhere on the map or drag the marker to relocate "<strong id="relocate-pin-title">Recording</strong>"</span>
+      <button id="btn-cancel-relocate" class="btn-cancel-banner">Done / Cancel</button>
+    </div>
+
+    <!-- Top Navigation Header -->
+    <header class="top-header">
+      <!-- Brand & Version -->
+      <div class="brand-card">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+          <path d="M2 12h20" />
+        </svg>
+        <span class="brand-title">SonicMapper</span>
+        <span id="version-badge" class="version-pill" title="View Build Info">v0.3.1</span>
+      </div>
+
+      <!-- Action Tools HUD -->
+      <div class="action-tools-hud">
+        <button id="btn-add-sound" class="hud-tool-btn btn-primary-action" title="Add New Sound Pin">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Add Sound
+        </button>
+        <button id="btn-export-geojson" class="hud-tool-btn" title="Export Map to GeoJSON">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Export
+        </button>
+        <label for="input-import-geojson" class="hud-tool-btn" style="cursor: pointer;" title="Import GeoJSON Map">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          Import
+          <input type="file" id="input-import-geojson" accept=".geojson,application/json" style="display: none;">
+        </label>
+      </div>
+
+      <!-- Mode Selector HUD -->
+      <div class="mode-selector-hud">
+        <button class="mode-btn active" data-mode="mock-gps" title="Draggable listener on map">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          Mock GPS
+        </button>
+        <button class="mode-btn" data-mode="location" title="Mobile device live GPS">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <polygon points="12 2 15 8 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 8 12 2" />
+          </svg>
+          Live GPS
+        </button>
+        <button class="mode-btn" data-mode="static" title="Manual archival inspection">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+            <line x1="8" y1="21" x2="16" y2="21" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+          </svg>
+          Static Mode
+        </button>
+      </div>
+
+      <!-- Map Theme Selector HUD -->
+      <div class="map-theme-hud">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+          <line x1="8" y1="2" x2="8" y2="18" />
+          <line x1="16" y1="6" x2="16" y2="22" />
+        </svg>
+        <select id="select-map-theme" class="theme-select" title="Switch Map Visual Theme">
+          <option value="positron" selected>Positron Light (Default)</option>
+          <option value="dadaa_noir">Radio DADAA Noir</option>
+          <option value="dark">Dark Vector</option>
+          <option value="liberty">Liberty Detailed</option>
+          <option value="bright">Bright Vector</option>
+        </select>
+      </div>
+
+      <!-- Master Audio HUD -->
+      <div class="master-audio-hud">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+        </svg>
+        <input type="range" id="master-volume" class="volume-slider" min="0" max="1" step="0.01" value="0.85">
+        <span id="volume-val">85%</span>
+      </div>
+    </header>
+
+    <!-- Diagnostics HUD Overlay -->
+    <aside class="diagnostics-hud">
+      <div class="hud-header">
+        <span>Listener Status</span>
+        <span id="hud-mode-text" class="hud-badge">MOCK GPS</span>
+      </div>
+      <div id="hud-coords" class="hud-coords">--°N, --°E</div>
+      
+      <div class="radar-section-title">Audible Sound Sources</div>
+      <div id="active-sounds-list">
+        <div class="sound-row empty">Move listener within radius</div>
+      </div>
+    </aside>
+
+    <!-- Bottom Playback & Archival Metadata Drawer -->
+    <div id="playback-drawer" class="playback-drawer collapsed">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <div class="title-row">
+            <span id="drawer-taxonomy-tag" class="tax-badge tax-biophony">Biophony</span>
+            <span id="drawer-format-tag" class="tax-badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">Ambisonic FOA</span>
+            <h2 id="drawer-title" class="drawer-title">Recording Title</h2>
+          </div>
+          <div class="drawer-subtitle">
+            Recorded by <strong id="drawer-recordist">Recordist</strong> • <span id="drawer-date">2026-04-12</span>
+          </div>
+        </div>
+
+        <div class="drawer-controls">
+          <button id="btn-audition-toggle" class="audition-btn">
+            <span>▶</span> Solo Audition
+          </button>
+          <button id="btn-edit-pin" class="btn-edit-outline" title="Edit Recording Metadata & Settings">
+            ✏️ Edit
+          </button>
+          <button id="btn-move-pin" class="btn-edit-outline" title="Relocate Marker on Map">
+            📍 Move
+          </button>
+          <button id="btn-delete-pin" class="btn-danger-outline" title="Delete Recording">
+            Delete
+          </button>
+          <button id="btn-close-drawer" class="btn-icon-close" title="Close Drawer">✕</button>
+        </div>
+      </div>
+
+      <!-- Real-Time FFT and Waveform Visualizer -->
+      <div class="visualizer-container">
+        <canvas id="visualizer-canvas"></canvas>
+      </div>
+
+      <!-- Archival Metadata Grid -->
+      <div class="metadata-grid">
+        <div class="meta-card">
+          <div class="meta-label">Channel / Spatial Format</div>
+          <div id="drawer-format" class="meta-value">First-Order Ambisonics (AmbiX)</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Microphone Setup</div>
+          <div id="drawer-mic" class="meta-value">Tetrahedral Ambisonic 4-Capsule Mic</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Recorder Hardware</div>
+          <div id="drawer-equipment" class="meta-value">Zoom F6</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Coordinates</div>
+          <div id="drawer-coords" class="meta-value">31.9505° S, 115.8605° E</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Atmospheric Conditions</div>
+          <div id="drawer-weather" class="meta-value">Clear, 17°C</div>
+        </div>
+        <div class="meta-card meta-desc">
+          <div class="meta-label">Field Notes & Ecological Description</div>
+          <div id="drawer-description" class="meta-value">Notes...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Add New Sound Pin -->
+    <div id="add-sound-modal" class="modal-backdrop hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Pin New Field Recording</h3>
+          <button id="btn-close-add-modal" class="btn-icon-close">✕</button>
+        </div>
+        <form id="add-sound-form">
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label>Pinned Coordinates (Lat, Lng)</label>
+              <input type="text" id="field-coords" class="form-input" readonly>
+            </div>
+            <div class="form-group full-width">
+              <label>Recording Title</label>
+              <input type="text" id="field-title" class="form-input" placeholder="e.g. Forest Canopy Dawn Chorus" required>
+            </div>
+            <div class="form-group">
+              <label>Recordist / Artist</label>
+              <input type="text" id="field-recordist" class="form-input" placeholder="e.g. Field Recordist">
+            </div>
+            <div class="form-group">
+              <label>Acoustic Taxonomy</label>
+              <select id="field-taxonomy" class="form-select">
+                <option value="biophony">Biophony (Fauna / Birds / Insects)</option>
+                <option value="geophony">Geophony (Water / Wind / Earth)</option>
+                <option value="anthropophony">Anthropophony (Urban / Transit / Human)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Spatial / Channel Format</label>
+              <select id="field-format" class="form-select">
+                <option value="ambisonic_ambix">Ambisonic FOA AmbiX (4-Ch: W, Y, Z, X)</option>
+                <option value="ambisonic_fuma">Ambisonic FOA FuMa (4-Ch: W, X, Y, Z)</option>
+                <option value="binaural">In-Ear Binaural (2-Channel)</option>
+                <option value="stereo" selected>Stereo (2-Channel)</option>
+                <option value="mono">Mono (1-Channel)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Distance Rolloff Curve</label>
+              <select id="field-rolloff" class="form-select">
+                <option value="exponential">Exponential (Natural Acoustic)</option>
+                <option value="linear">Linear</option>
+              </select>
+            </div>
+            <div class="form-group full-width">
+              <label>Audio File (.wav, .mp3, .flac, .ogg, 4-ch AmbiX WAV)</label>
+              <div class="file-input-wrapper">
+                <input type="file" id="field-audio-file" accept="audio/*">
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                  Leave empty to generate synthetic ambient spatial soundscape automatically
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Proximity Radius: <span id="modal-radius-val" class="range-val">60m</span></label>
+              <div class="range-row">
+                <input type="range" id="field-radius" class="volume-slider" min="15" max="250" step="5" value="60">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Microphone Configuration</label>
+              <input type="text" id="field-mic" class="form-input" placeholder="e.g. Sennheiser AMBEO / In-ear Binaural">
+            </div>
+            <div class="form-group">
+              <label>Recorder Hardware</label>
+              <input type="text" id="field-equipment" class="form-input" placeholder="e.g. Zoom F6 / MixPre-6">
+            </div>
+            <div class="form-group">
+              <label>Atmospheric & Weather Conditions</label>
+              <input type="text" id="field-weather" class="form-input" placeholder="e.g. Sunny, 21°C, calm wind">
+            </div>
+            <div class="form-group full-width">
+              <label>Archival Notes & Ecological Description</label>
+              <textarea id="field-description" class="form-textarea" placeholder="Field notes on location, species observed, or acoustic features..."></textarea>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" onclick="document.getElementById('add-sound-modal').classList.add('hidden')">Cancel</button>
+            <button type="submit" class="btn-primary">Save to Soundscape</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Edit Existing Sound Recording -->
+    <div id="edit-sound-modal" class="modal-backdrop hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Edit Field Recording</h3>
+          <button id="btn-close-edit-modal" class="btn-icon-close">✕</button>
+        </div>
+        <form id="edit-sound-form">
+          <input type="hidden" id="edit-sound-id">
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label>Pinned Coordinates (Lat, Lng)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="edit-field-coords" class="form-input" style="flex: 1;" readonly>
+                <button type="button" id="btn-modal-reposition" class="btn-secondary" style="white-space: nowrap;">📍 Relocate on Map</button>
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label>Recording Title</label>
+              <input type="text" id="edit-field-title" class="form-input" placeholder="e.g. Forest Canopy Dawn Chorus" required>
+            </div>
+            <div class="form-group">
+              <label>Recordist / Artist</label>
+              <input type="text" id="edit-field-recordist" class="form-input" placeholder="e.g. Field Recordist">
+            </div>
+            <div class="form-group">
+              <label>Acoustic Taxonomy</label>
+              <select id="edit-field-taxonomy" class="form-select">
+                <option value="biophony">Biophony (Fauna / Birds / Insects)</option>
+                <option value="geophony">Geophony (Water / Wind / Earth)</option>
+                <option value="anthropophony">Anthropophony (Urban / Transit / Human)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Spatial / Channel Format</label>
+              <select id="edit-field-format" class="form-select">
+                <option value="ambisonic_ambix">Ambisonic FOA AmbiX (4-Ch: W, Y, Z, X)</option>
+                <option value="ambisonic_fuma">Ambisonic FOA FuMa (4-Ch: W, X, Y, Z)</option>
+                <option value="binaural">In-Ear Binaural (2-Channel)</option>
+                <option value="stereo">Stereo (2-Channel)</option>
+                <option value="mono">Mono (1-Channel)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Distance Rolloff Curve</label>
+              <select id="edit-field-rolloff" class="form-select">
+                <option value="exponential">Exponential (Natural Acoustic)</option>
+                <option value="linear">Linear</option>
+              </select>
+            </div>
+            <div class="form-group full-width">
+              <label>Replace Audio File (Optional)</label>
+              <div class="file-input-wrapper">
+                <input type="file" id="edit-field-audio-file" accept="audio/*">
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                  Leave empty to keep existing recording / procedural audio
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Proximity Radius: <span id="edit-modal-radius-val" class="range-val">60m</span></label>
+              <div class="range-row">
+                <input type="range" id="edit-field-radius" class="volume-slider" min="15" max="250" step="5" value="60">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Microphone Configuration</label>
+              <input type="text" id="edit-field-mic" class="form-input" placeholder="e.g. Sennheiser AMBEO / In-ear Binaural">
+            </div>
+            <div class="form-group">
+              <label>Recorder Hardware</label>
+              <input type="text" id="edit-field-equipment" class="form-input" placeholder="e.g. Zoom F6 / MixPre-6">
+            </div>
+            <div class="form-group">
+              <label>Atmospheric & Weather Conditions</label>
+              <input type="text" id="edit-field-weather" class="form-input" placeholder="e.g. Sunny, 21°C, calm wind">
+            </div>
+            <div class="form-group full-width">
+              <label>Archival Notes & Ecological Description</label>
+              <textarea id="edit-field-description" class="form-textarea" placeholder="Field notes on location, species observed, or acoustic features..."></textarea>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" id="btn-cancel-edit-modal">Cancel</button>
+            <button type="submit" class="btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Splash Audio Unlock Overlay -->
+    <div id="splash-overlay" class="splash-overlay">
+      <div class="splash-dialog">
+        <svg class="splash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="10 8 16 12 10 16 10 8" />
+        </svg>
+        <h1 class="splash-title">Enter Soundscape</h1>
+        <p class="splash-desc">
+          SonicMapper uses spatial Web Audio and First-Order Ambisonics (FOA) to binaurally position field recordings across geographic terrain.
+          Click below to initialize the audio context and start exploring.
+        </p>
+        <button id="btn-start-audio" class="btn-primary">Activate Audio Engine</button>
+      </div>
+    </div>
+
+    <!-- Version & Build Info Modal -->
+    <div id="version-modal" class="modal-backdrop hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Build Information</h3>
+          <button id="btn-close-version" class="btn-icon-close">✕</button>
+        </div>
+        <p><strong>Version:</strong> <span id="version-text">v0.3.1</span></p>
+        <p><strong>Stage:</strong> <span id="build-stage">Phase 2+: Sound Marker Editing & Drag Relocation</span></p>
+        <p><strong>Build Date:</strong> <span id="build-date">2026-09-12</span></p>
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 12px 0;">
+        <strong>Active Features:</strong>
+        <ul id="build-features" class="feature-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- MapLibre GL JS -->
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+  <!-- Main ES Module Bootstrap -->
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
