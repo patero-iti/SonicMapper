@@ -27,12 +27,59 @@ export class MapController {
   }
 
   /**
+   * Recursively sanitizes vector style filter expressions to prevent MapLibre v4 worker null type warnings
+   */
+  sanitizeStyleExpressions(obj) {
+    if (Array.isArray(obj)) {
+      if (obj.length >= 3 && ['<', '<=', '>', '>='].includes(obj[0])) {
+        const op = obj[0];
+        const newObj = [...obj];
+        if (Array.isArray(newObj[1]) && newObj[1][0] === 'get') {
+          const fallback = (op === '<' || op === '<=') ? 999999 : -999999;
+          newObj[1] = ['to-number', newObj[1], fallback];
+        }
+        if (Array.isArray(newObj[2]) && newObj[2][0] === 'get') {
+          const fallback = (op === '<' || op === '<=') ? -999999 : 999999;
+          newObj[2] = ['to-number', newObj[2], fallback];
+        }
+        return newObj.map(item => this.sanitizeStyleExpressions(item));
+      }
+      return obj.map(item => this.sanitizeStyleExpressions(item));
+    } else if (obj !== null && typeof obj === 'object') {
+      const copy = {};
+      for (const key of Object.keys(obj)) {
+        copy[key] = this.sanitizeStyleExpressions(obj[key]);
+      }
+      return copy;
+    }
+    return obj;
+  }
+
+  /**
+   * Fetches OpenFreeMap vector style JSON and applies strict type sanitization
+   */
+  async fetchSanitizedStyle(url) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const rawStyle = await res.json();
+      return this.sanitizeStyleExpressions(rawStyle);
+    } catch (e) {
+      console.warn('Could not pre-sanitize vector style JSON, falling back to direct URL:', e.message);
+      return url;
+    }
+  }
+
+  /**
    * Initializes the MapLibre GL instance with high-performance OpenFreeMap vector tiles.
    */
   async init() {
+    const defaultStyleUrl = 'https://tiles.openfreemap.org/styles/positron';
+    const initialStyle = await this.fetchSanitizedStyle(defaultStyleUrl);
+
     this.map = new maplibregl.Map({
       container: this.containerId,
-      style: 'https://tiles.openfreemap.org/styles/positron', // Default: Positron Light
+      style: initialStyle, // Sanitized Positron Light style
       center: this.initialCenter,
       zoom: this.initialZoom,
       pitch: 35, // Dynamic angle for spatial immersion
@@ -111,7 +158,7 @@ export class MapController {
   /**
    * Switches map visual style theme on the fly
    */
-  setMapTheme(themeName) {
+  async setMapTheme(themeName) {
     this.currentTheme = themeName;
     const styleUrls = {
       dadaa_noir: 'https://tiles.openfreemap.org/styles/dark',
@@ -122,6 +169,7 @@ export class MapController {
     };
 
     const targetUrl = styleUrls[themeName] || styleUrls.positron;
+    const sanitizedStyle = await this.fetchSanitizedStyle(targetUrl);
 
     this.map.once('style.load', () => {
       if (themeName === 'dadaa_noir') {
@@ -130,7 +178,7 @@ export class MapController {
       this.updateAcousticZonePolygons();
     });
 
-    this.map.setStyle(targetUrl);
+    this.map.setStyle(sanitizedStyle);
   }
 
   /**
@@ -360,9 +408,17 @@ export class MapController {
     if (!this.map || !this.map.isStyleLoaded()) return;
 
     const polygonFeatures = (this.features || []).map((f, index) => {
-      const radius = Number(f.properties?.spatialPlayback?.radiusMeters) || 60;
-      const coords = f.geometry?.coordinates || [115.8605, -31.9505];
-      const polyGeom = GeoEngine.createCirclePolygon(coords, radius);
+      const isPolygon = f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon';
+      let polyGeom;
+
+      if (isPolygon) {
+        polyGeom = f.geometry;
+      } else {
+        const radius = Number(f.properties?.spatialPlayback?.radiusMeters) || 60;
+        const coords = f.geometry?.coordinates || [115.8605, -31.9505];
+        polyGeom = GeoEngine.createCirclePolygon(coords, radius);
+      }
+
       const tax = String(f.properties?.archival?.taxonomies?.[0] || 'biophony');
 
       return {
@@ -372,7 +428,8 @@ export class MapController {
         properties: {
           featureId: String(f.id || index),
           title: String(f.properties?.title || 'Sound'),
-          taxonomy: tax
+          taxonomy: tax,
+          isPolygon: isPolygon
         }
       };
     });
@@ -403,7 +460,11 @@ export class MapController {
             'anthropophony', '#f43f5e',
             '#c084fc'
           ],
-          'fill-opacity': 0.22
+          'fill-opacity': [
+            'case',
+            ['boolean', ['get', 'isPolygon'], false], 0.28,
+            0.20
+          ]
         }
       });
 
@@ -420,7 +481,11 @@ export class MapController {
             'anthropophony', '#f43f5e',
             '#c084fc'
           ],
-          'line-width': 2,
+          'line-width': [
+            'case',
+            ['boolean', ['get', 'isPolygon'], false], 3,
+            2
+          ],
           'line-dasharray': [2, 2],
           'line-opacity': 0.85
         }
@@ -429,28 +494,46 @@ export class MapController {
   }
 
   /**
-   * Creates custom draggable HTML marker pin for a sound node
+   * Creates custom HTML marker pin for a sound node or polygon centroid
    */
   createPinMarker(feature) {
-    const coords = feature.geometry.coordinates;
+    const isPolygon = feature.geometry?.type === 'Polygon' || feature.geometry?.type === 'MultiPolygon';
+    const coords = isPolygon
+      ? GeoEngine.getPolygonCentroid(feature.geometry.coordinates)
+      : feature.geometry.coordinates;
+
     const props = feature.properties;
     const tax = props.archival?.taxonomies?.[0] || 'biophony';
 
     const el = document.createElement('div');
-    el.className = `sound-pin-marker pin-${tax}`;
+    el.className = `sound-pin-marker pin-${tax} ${isPolygon ? 'pin-habitat-zone' : ''}`;
     el.dataset.id = feature.id;
-    el.title = 'Click to view details or drag to reposition';
-    el.innerHTML = `
-      <div class="pin-icon">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-          <line x1="12" y1="19" x2="12" y2="23"/>
-          <line x1="8" y1="23" x2="16" y2="23"/>
-        </svg>
-      </div>
-      <div class="pin-tooltip">${props.title}</div>
-    `;
+    el.title = isPolygon
+      ? `Habitat Zone: ${props.title} (Click to view)`
+      : `${props.title} (Click to view or drag to reposition)`;
+
+    el.innerHTML = isPolygon
+      ? `
+        <div class="pin-icon">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+        <div class="pin-tooltip">🌲 ${props.title}</div>
+      `
+      : `
+        <div class="pin-icon">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </div>
+        <div class="pin-tooltip">${props.title}</div>
+      `;
 
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -461,30 +544,32 @@ export class MapController {
 
     const marker = new maplibregl.Marker({ 
       element: el,
-      draggable: true
+      draggable: !isPolygon // Polygons are anchored to geographic vertices
     })
       .setLngLat(coords)
       .addTo(this.map);
 
-    // Real-time acoustic zone update while dragging pin
-    marker.on('drag', () => {
-      const lngLat = marker.getLngLat();
-      feature.geometry.coordinates = [lngLat.lng, lngLat.lat];
-      this.updateAcousticZonePolygons();
-      if (this.onSoundMove) {
-        this.onSoundMove(feature, [lngLat.lng, lngLat.lat]);
-      }
-    });
+    if (!isPolygon) {
+      // Real-time acoustic zone update while dragging pin
+      marker.on('drag', () => {
+        const lngLat = marker.getLngLat();
+        feature.geometry.coordinates = [lngLat.lng, lngLat.lat];
+        this.updateAcousticZonePolygons();
+        if (this.onSoundMove) {
+          this.onSoundMove(feature, [lngLat.lng, lngLat.lat]);
+        }
+      });
 
-    // Finalize position & persist on dragend
-    marker.on('dragend', () => {
-      const lngLat = marker.getLngLat();
-      feature.geometry.coordinates = [lngLat.lng, lngLat.lat];
-      this.updateAcousticZonePolygons();
-      if (this.onSoundMoved) {
-        this.onSoundMoved(feature, [lngLat.lng, lngLat.lat]);
-      }
-    });
+      // Finalize position & persist on dragend
+      marker.on('dragend', () => {
+        const lngLat = marker.getLngLat();
+        feature.geometry.coordinates = [lngLat.lng, lngLat.lat];
+        this.updateAcousticZonePolygons();
+        if (this.onSoundMoved) {
+          this.onSoundMoved(feature, [lngLat.lng, lngLat.lat]);
+        }
+      });
+    }
 
     this.soundMarkers.set(feature.id, marker);
   }

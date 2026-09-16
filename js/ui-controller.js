@@ -21,6 +21,10 @@ export class UIController {
     this.orientationHandler = null;
     this.geoWatchId = null;
 
+    // Phase 3 Archival & Spectrogram State
+    this.visMode = 'waveform'; // 'waveform', 'fft', 'spectrogram'
+    this.spectrogramHistory = []; // Historical frequency slices
+
     // Canvas elements
     this.canvasWave = document.getElementById('visualizer-canvas');
     this.canvasCtx = this.canvasWave?.getContext('2d');
@@ -208,6 +212,24 @@ export class UIController {
         }
       });
     }
+
+    // Audio Download / Export Button in Drawer
+    const downloadBtn = document.getElementById('btn-download-sound');
+    if (downloadBtn) {
+      downloadBtn.addEventListener('click', async () => {
+        if (!this.selectedFeature) return;
+        await this.handleDownloadAudio(this.selectedFeature);
+      });
+    }
+
+    // Visualizer Mode Switcher Pills
+    document.querySelectorAll('.vis-pill').forEach((pill) => {
+      pill.addEventListener('click', (e) => {
+        document.querySelectorAll('.vis-pill').forEach(p => p.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        this.visMode = e.currentTarget.dataset.vis || 'waveform';
+      });
+    });
 
     // Edit Sound Button in Drawer
     const editBtn = document.getElementById('btn-edit-pin');
@@ -913,53 +935,348 @@ export class UIController {
   }
 
   /**
-   * High-Performance Real-Time Canvas Visualizer
+   * Generates and triggers audio asset download for a feature (Uploaded Blob, URL, or Procedural WAV bounce)
+   */
+  async handleDownloadAudio(feature) {
+    const title = feature.properties.title || 'soundscape_recording';
+    const cleanTitle = title.toLowerCase().replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_');
+
+    try {
+      // 1. Check if user-uploaded blob exists in IndexedDB
+      const storedBlob = await this.storage.getAudioBlob(feature.id);
+      if (storedBlob) {
+        const ext = storedBlob.type.includes('ogg') ? 'ogg' : storedBlob.type.includes('mp3') ? 'mp3' : 'wav';
+        this.triggerBlobDownload(storedBlob, `${cleanTitle}.${ext}`);
+        return;
+      }
+
+      // 2. Check if remote URL exists
+      if (feature.properties.audio?.url && feature.properties.audio.url.startsWith('http')) {
+        const resp = await fetch(feature.properties.audio.url);
+        if (resp.ok) {
+          const remoteBlob = await resp.blob();
+          const ext = feature.properties.audio.format?.includes('ogg') ? 'ogg' : 'wav';
+          this.triggerBlobDownload(remoteBlob, `${cleanTitle}.${ext}`);
+          return;
+        }
+      }
+
+      // 3. Procedural Synthetic Sound -> Synthesize high-quality uncompressed 16-bit 48kHz WAV bounce via OfflineAudioContext
+      const wavBlob = await this.renderProceduralWav(feature);
+      this.triggerBlobDownload(wavBlob, `${cleanTitle}_archival_synth.wav`);
+    } catch (err) {
+      console.error('Audio download error:', err);
+      alert('Could not download audio: ' + err.message);
+    }
+  }
+
+  triggerBlobDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  /**
+   * Offline audio render helper to export procedural sound synthesis to WAV Blob
+   */
+  async renderProceduralWav(feature) {
+    const sampleRate = 48000;
+    const duration = 6.0; // 6 seconds loop
+    const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const offlineCtx = new OfflineCtx(2, Math.floor(sampleRate * duration), sampleRate);
+
+    const type = feature.properties.synthType || 
+      (feature.properties.archival?.taxonomies?.[0] === 'geophony' ? 'water' : 
+       feature.properties.archival?.taxonomies?.[0] === 'biophony' ? 'birdsong' : 'urban');
+
+    if (type === 'birdsong') {
+      const osc = offlineCtx.createOscillator();
+      const lfo = offlineCtx.createOscillator();
+      const lfoGain = offlineCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(2400, 0);
+      lfo.type = 'triangle';
+      lfo.frequency.setValueAtTime(4.5, 0);
+      lfoGain.gain.setValueAtTime(600, 0);
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      const filter = offlineCtx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(2800, 0);
+      filter.Q.setValueAtTime(3, 0);
+      osc.connect(filter);
+      filter.connect(offlineCtx.destination);
+      osc.start(0);
+      lfo.start(0);
+    } else if (type === 'water') {
+      const bufferSize = Math.floor(sampleRate * duration);
+      const noiseBuffer = offlineCtx.createBuffer(1, bufferSize, sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        data[i] = (b0 + b1 + b2) * 0.15;
+      }
+      const noiseSource = offlineCtx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+      const filter = offlineCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(450, 0);
+      noiseSource.connect(filter);
+      filter.connect(offlineCtx.destination);
+      noiseSource.start(0);
+    } else {
+      const osc1 = offlineCtx.createOscillator();
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(65, 0);
+      const filter = offlineCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(240, 0);
+      osc1.connect(filter);
+      filter.connect(offlineCtx.destination);
+      osc1.start(0);
+    }
+
+    const renderedBuffer = await offlineCtx.startRendering();
+    return this.audioBufferToWavBlob(renderedBuffer);
+  }
+
+  /**
+   * Encodes standard PCM 16-bit stereo WAV binary from AudioBuffer
+   */
+  audioBufferToWavBlob(audioBuffer) {
+    const numChannels = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+    const numSamples = audioBuffer.length * numChannels;
+    const buffer = new ArrayBuffer(44 + numSamples * 2);
+    const view = new DataView(buffer);
+
+    const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+
+    /* RIFF identifier */
+    writeString(0, 'RIFF');
+    /* file length */
+    view.setUint32(4, 36 + numSamples * 2, true);
+    /* RIFF type */
+    writeString(8, 'WAVE');
+    /* format chunk identifier */
+    writeString(12, 'fmt ');
+    /* format chunk length */
+    view.setUint32(16, 16, true);
+    /* sample format (raw) */
+    view.setUint16(20, format, true);
+    /* channel count */
+    view.setUint16(22, numChannels, true);
+    /* sample rate */
+    view.setUint32(24, sampleRate, true);
+    /* byte rate (sample rate * block align) */
+    view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
+    /* block align (channel count * bytes per sample) */
+    view.setUint16(32, numChannels * (bitDepth / 8), true);
+    /* bits per sample */
+    view.setUint16(34, bitDepth, true);
+    /* data chunk identifier */
+    writeString(36, 'data');
+    /* data chunk length */
+    view.setUint32(40, numSamples * 2, true);
+
+    const channels = [];
+    for (let i = 0; i < numChannels; i++) {
+      channels.push(audioBuffer.getChannelData(i));
+    }
+
+    let offset = 44;
+    for (let i = 0; i < audioBuffer.length; i++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        const sample = Math.max(-1, Math.min(1, channels[ch][i]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+
+    return new Blob([view], { type: 'audio/wav' });
+  }
+
+  /**
+   * High-Performance Real-Time Multi-Mode Canvas Visualizer
+   * Supports: 'waveform' (Oscilloscope), 'fft' (Spectral Bars), 'spectrogram' (2D Waterfall Heatmap)
    */
   startVisualizerLoop() {
+    const offscreenCanvas = document.createElement('canvas');
+    const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+    let lastWidth = 0;
+    let lastHeight = 0;
+
+    // Helper colormap for Spectrogram: 0.0 -> #180c12, 0.35 -> #8b2668, 0.7 -> #e83bb2, 1.0 -> #ffffff
+    const getSpectrogramColor = (val) => {
+      const norm = Math.max(0, Math.min(1, val / 255));
+      if (norm < 0.3) {
+        const t = norm / 0.3;
+        const r = Math.round(24 + (99 - 24) * t);
+        const g = Math.round(12 + (25 - 12) * t);
+        const b = Math.round(18 + (68 - 18) * t);
+        return `rgb(${r},${g},${b})`;
+      } else if (norm < 0.7) {
+        const t = (norm - 0.3) / 0.4;
+        const r = Math.round(99 + (232 - 99) * t);
+        const g = Math.round(25 + (59 - 25) * t);
+        const b = Math.round(68 + (178 - 68) * t);
+        return `rgb(${r},${g},${b})`;
+      } else {
+        const t = (norm - 0.7) / 0.3;
+        const r = Math.round(232 + (255 - 232) * t);
+        const g = Math.round(59 + (255 - 59) * t);
+        const b = Math.round(178 + (255 - 178) * t);
+        return `rgb(${r},${g},${b})`;
+      }
+    };
+
     const render = () => {
       if (this.canvasWave && this.canvasCtx) {
-        const { freqData, waveData } = this.audio.getVisualizerData();
-        const width = this.canvasWave.width = this.canvasWave.parentElement.clientWidth || 300;
-        const height = this.canvasWave.height = 70;
-        const ctx = this.canvasCtx;
+        const parentWidth = this.canvasWave.parentElement.clientWidth || 300;
+        const parentHeight = this.canvasWave.parentElement.clientHeight || 85;
 
-        ctx.clearRect(0, 0, width, height);
-
-        // Render FFT Frequency Bars in background
-        if (freqData.length > 0) {
-          const barWidth = (width / freqData.length) * 2.5;
-          let barX = 0;
-          for (let i = 0; i < freqData.length; i++) {
-            const barHeight = (freqData[i] / 255) * height;
-            ctx.fillStyle = `rgba(232, 59, 178, ${0.15 + (freqData[i] / 255) * 0.45})`;
-            ctx.fillRect(barX, height - barHeight, barWidth, barHeight);
-            barX += barWidth + 1;
-          }
+        if (this.canvasWave.width !== parentWidth || this.canvasWave.height !== parentHeight) {
+          this.canvasWave.width = parentWidth;
+          this.canvasWave.height = parentHeight;
         }
 
-        // Render Oscilloscope Time-Domain Waveform in foreground
-        if (waveData.length > 0) {
-          ctx.lineWidth = 2.5;
-          ctx.strokeStyle = '#e83bb2';
-          ctx.beginPath();
+        const width = this.canvasWave.width;
+        const height = this.canvasWave.height;
+        const ctx = this.canvasCtx;
 
-          const sliceWidth = (width * 1.0) / waveData.length;
-          let x = 0;
+        if (lastWidth !== width || lastHeight !== height) {
+          offscreenCanvas.width = width;
+          offscreenCanvas.height = height;
+          offscreenCtx.fillStyle = '#180c12';
+          offscreenCtx.fillRect(0, 0, width, height);
+          lastWidth = width;
+          lastHeight = height;
+        }
 
-          for (let i = 0; i < waveData.length; i++) {
-            const v = waveData[i] / 128.0;
-            const y = (v * height) / 2;
+        const { freqData, waveData } = this.audio.getVisualizerData();
 
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
-            }
-            x += sliceWidth;
+        if (this.visMode === 'spectrogram') {
+          // Shift existing spectrogram image 2px to the left
+          offscreenCtx.drawImage(offscreenCanvas, 2, 0, width - 2, height, 0, 0, width - 2, height);
+
+          // Draw latest vertical frequency slice on rightmost 2px
+          const numBins = Math.min(freqData.length, 64);
+          const sliceHeight = height / numBins;
+
+          for (let i = 0; i < numBins; i++) {
+            const val = freqData ? freqData[i] : 0;
+            offscreenCtx.fillStyle = getSpectrogramColor(val);
+            // Invert Y so low frequencies are at bottom and high at top
+            const y = height - (i + 1) * sliceHeight;
+            offscreenCtx.fillRect(width - 2, y, 2, sliceHeight + 1);
           }
 
-          ctx.lineTo(width, height / 2);
-          ctx.stroke();
+          // Transfer offscreen canvas to main visualizer canvas
+          ctx.drawImage(offscreenCanvas, 0, 0);
+
+          // Subtle frequency axis markings
+          ctx.fillStyle = 'rgba(252, 235, 247, 0.4)';
+          ctx.font = '9px monospace';
+          ctx.fillText('8kHz', 6, 12);
+          ctx.fillText('100Hz', 6, height - 6);
+
+        } else if (this.visMode === 'fft') {
+          ctx.clearRect(0, 0, width, height);
+
+          // Background grid
+          ctx.strokeStyle = 'rgba(232, 59, 178, 0.1)';
+          ctx.lineWidth = 1;
+          for (let y = 15; y < height; y += 20) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+          }
+
+          if (freqData.length > 0) {
+            const barCount = Math.min(freqData.length, 48);
+            const barSpacing = 2;
+            const barWidth = (width - barSpacing * (barCount - 1)) / barCount;
+
+            for (let i = 0; i < barCount; i++) {
+              const val = freqData[i];
+              const barHeight = (val / 255) * (height - 8);
+              const x = i * (barWidth + barSpacing);
+              const y = height - barHeight;
+
+              // Vertical pink gradient
+              const grad = ctx.createLinearGradient(0, height, 0, y);
+              grad.addColorStop(0, 'rgba(139, 38, 104, 0.8)');
+              grad.addColorStop(0.7, '#e83bb2');
+              grad.addColorStop(1, '#ffffff');
+
+              ctx.fillStyle = grad;
+              ctx.fillRect(x, y, barWidth, barHeight);
+
+              // Top highlight cap
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(x, Math.max(0, y - 2), barWidth, 2);
+            }
+          }
+        } else {
+          // Default: 'waveform' Oscilloscope
+          ctx.clearRect(0, 0, width, height);
+
+          // Background ambient glow FFT in subtle opacity
+          if (freqData.length > 0) {
+            const barWidth = (width / freqData.length) * 2.5;
+            let barX = 0;
+            for (let i = 0; i < freqData.length; i++) {
+              const barHeight = (freqData[i] / 255) * height;
+              ctx.fillStyle = `rgba(232, 59, 178, ${0.08 + (freqData[i] / 255) * 0.25})`;
+              ctx.fillRect(barX, height - barHeight, barWidth, barHeight);
+              barX += barWidth + 1;
+            }
+          }
+
+          // Oscilloscope Time-Domain Waveform with Pink Glow
+          if (waveData.length > 0) {
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = '#e83bb2';
+            ctx.shadowColor = 'rgba(232, 59, 178, 0.8)';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+
+            const sliceWidth = (width * 1.0) / waveData.length;
+            let x = 0;
+
+            for (let i = 0; i < waveData.length; i++) {
+              const v = waveData[i] / 128.0;
+              const y = (v * height) / 2;
+
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                ctx.lineTo(x, y);
+              }
+              x += sliceWidth;
+            }
+
+            ctx.lineTo(width, height / 2);
+            ctx.stroke();
+
+            ctx.shadowBlur = 0;
+          }
         }
       }
 

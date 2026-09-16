@@ -19,7 +19,7 @@ class App {
   }
 
   async init() {
-    console.log('Initializing SonicMapper v0.3.1...');
+    console.log('Initializing SonicMapper v0.5.0...');
 
     // 1. Initialize Storage & Map Engines
     await this.storageEngine.init();
@@ -81,11 +81,17 @@ class App {
       this.uiController.openAddSoundModal(coords);
     };
 
-    // 9. Load Version Info into Modal
+    // 9. Load Version Info into Modal and Badges
     try {
       const vResp = await fetch('./version.json');
       const vData = await vResp.json();
-      document.getElementById('version-text').innerText = `v${vData.version}`;
+      const versionStr = `v${vData.version}`;
+      const vBadge = document.getElementById('version-badge');
+      const menuVBadge = document.getElementById('menu-version-badge');
+      const vText = document.getElementById('version-text');
+      if (vBadge) vBadge.innerText = versionStr;
+      if (menuVBadge) menuVBadge.innerText = versionStr;
+      if (vText) vText.innerText = versionStr;
       document.getElementById('build-stage').innerText = vData.stage;
       document.getElementById('build-date').innerText = vData.buildDate;
       const featList = document.getElementById('build-features');
