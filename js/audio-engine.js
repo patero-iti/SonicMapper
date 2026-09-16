@@ -544,20 +544,32 @@ export class AudioEngine {
   /**
    * Updates listener position and recalculates proximity attenuation and panning.
    */
-  updateListenerPosition(coords, heading = 0) {
+  updateListenerPosition(coords, heading = null) {
     this.listenerPosition = coords;
-    this.listenerHeading = heading;
+    if (heading !== null && !isNaN(heading)) {
+      this.listenerHeading = heading;
+    }
     this.updateProximityMix();
   }
 
   /**
-   * Recalculates distance and adjusts gain / pan / ambisonic rotation across all nodes.
+   * Updates listener physical orientation/compass heading in degrees (0-360°)
+   */
+  updateListenerHeading(heading) {
+    if (heading === null || isNaN(heading)) return;
+    this.listenerHeading = ((heading % 360) + 360) % 360;
+    this.updateProximityMix();
+  }
+
+  /**
+   * Recalculates distance and adjusts gain / pan / ambisonic rotation across all nodes
+   * with acoustic hysteresis boundary damping to prevent edge fluttering.
    */
   updateProximityMix() {
     if (!this.ctx || !this.isUnlocked) return;
 
     const now = this.ctx.currentTime;
-    const timeConstant = 0.08;
+    const timeConstant = 0.12;
 
     for (const [, sound] of this.soundNodes) {
       // In Static Solo Audition mode
@@ -586,11 +598,20 @@ export class AudioEngine {
       const dist = GeoEngine.getDistance(this.listenerPosition, sound.coords);
       sound.currentDistance = dist;
 
+      // Acoustic Hysteresis: Entry at radius, exit buffer at radius * 1.08 (+5m buffer)
+      const exitRadius = sound.radius + Math.max(4, sound.radius * 0.08);
+      const isAudible = sound.isAudible
+        ? dist < exitRadius
+        : dist <= sound.radius;
+
+      sound.isAudible = isAudible;
+
       let gain = 0;
-      if (dist < sound.radius) {
-        const norm = 1 - dist / sound.radius; // 1 at center, 0 at boundary
+      if (isAudible) {
+        const effectiveMax = sound.isAudible && dist > sound.radius ? exitRadius : sound.radius;
+        const norm = Math.max(0, 1 - dist / effectiveMax); // 1 at center, 0 at boundary
         if (sound.rolloff === 'exponential') {
-          gain = Math.pow(norm, 2.2);
+          gain = Math.pow(norm, 2.0);
         } else {
           gain = norm; // Linear
         }
@@ -608,7 +629,7 @@ export class AudioEngine {
         sound.gainNode.gain.setTargetAtTime(gain, now, timeConstant);
 
         // Standard Stereo Panning based on angle between listener and source
-        if (sound.pannerNode && dist < sound.radius * 1.5) {
+        if (sound.pannerNode && dist < exitRadius * 1.5) {
           const bearing = GeoEngine.getBearing(this.listenerPosition, sound.coords);
           const relAngle = ((bearing - this.listenerHeading + 540) % 360) - 180;
           const panValue = Math.sin((relAngle * Math.PI) / 180);

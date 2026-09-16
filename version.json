@@ -1,20 +1,20 @@
 {
   "name": "SonicMapper",
-  "version": "0.3.2",
-  "stage": "Phase 2+: Mobile-First Navigation & Ergonomic Vertical Volume Control",
+  "version": "0.4.0",
+  "stage": "Phase 2: Mobile Integration, Heading Orientation & Field Soundwalks",
   "buildDate": "2026-09-16",
-  "commit": "mobile-burger-menu-vertical-volume",
+  "commit": "phase-2-mobile-orientation-soundwalks",
   "features": [
+    "Hardware Compass Magnetometer Orientation (DeviceOrientationEvent & iOS Permission Flow)",
+    "Real-Time 360° Ambisonic FOA Soundfield Yaw Rotation tied to Listener Head Orientation",
+    "Dynamic Cartographic Heading Cone & Directional Flashlight Beam on Listener Marker",
+    "Adaptive GPS Jitter Smoothing & Drift Filter (Exponential Moving Average Interpolation)",
+    "Acoustic Hysteresis Proximity Thresholds to Eliminate Boundary Hover Audio Fluttering",
+    "Screen Wake Lock API to prevent phone display sleep during outdoor field soundwalks",
+    "Media Session API Integration for mobile lock screen metadata and audio controls",
     "Slide-over Burger Navigation Menu (Sound Marker Management, GPS Modes, Theme Switcher, Radar Toggle)",
     "Lower-Left Vertical Master Spatial Volume Slider with Quick-Mute Toggle & Dynamic Readout",
-    "Streamlined Mobile Portrait Header with Quick-Add Action and Collapsible Menu Drawer",
-    "Enhanced Touch Ergonomics for Portrait Smartphones & Mobile Viewport Navigation",
-    "Interactive Sound Marker Editing Modal (Title, Artist, Taxonomy, Spatial Format, Radius, Hardware, Notes, Audio replacement)",
-    "Direct Drag-and-Drop Map Marker Repositioning with Real-Time Acoustic Proximity Ring tracking",
-    "One-Click '📍 Move Pin' Cartographic Relocation Mode with Helper Banner",
-    "Instant Web Audio Spatial Recalculation on Marker Move (Distance Attenuation, Compass Bearing & Proximity Gain)",
-    "First-Order Ambisonics (FOA) 4-Channel Decoder (AmbiX & FuMa) with Real-Time Yaw Rotation",
-    "Positron Light Default Map & Interactive Multi-Theme Switcher",
+    "Interactive Sound Marker Editing Modal with Drag-and-Drop Pin Relocation",
     "Real-Time Waveform & FFT Visualizer Drawer"
   ]
 }

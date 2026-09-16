@@ -106,4 +106,48 @@ export class GeoEngine {
     const [lng, lat] = coords;
     return `${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E`;
   }
+
+  /**
+   * Smooths incoming GPS coordinates against previous location to eliminate stationary jitter.
+   * Uses adaptive weight alpha based on distance delta (small drift = heavy dampening, fast move = responsive).
+   */
+  static smoothCoordinates(prevCoords, newCoords, minDeltaMeters = 1.2) {
+    if (!prevCoords || !Array.isArray(prevCoords)) return newCoords;
+    if (!newCoords || !Array.isArray(newCoords)) return prevCoords;
+
+    const dist = this.getDistance(prevCoords, newCoords);
+    if (dist < minDeltaMeters) {
+      // Stationary GPS noise / wander
+      const alpha = 0.15;
+      return [
+        prevCoords[0] + (newCoords[0] - prevCoords[0]) * alpha,
+        prevCoords[1] + (newCoords[1] - prevCoords[1]) * alpha
+      ];
+    } else if (dist < 15) {
+      // Normal walking movement
+      const alpha = 0.45;
+      return [
+        prevCoords[0] + (newCoords[0] - prevCoords[0]) * alpha,
+        prevCoords[1] + (newCoords[1] - prevCoords[1]) * alpha
+      ];
+    } else {
+      // Major jump / initial fix
+      return newCoords;
+    }
+  }
+
+  /**
+   * Smooths compass heading degrees (0-360°) handling angular wraparound across the 0°/360° north boundary
+   */
+  static smoothHeading(prevHeading, newHeading, alpha = 0.25) {
+    if (prevHeading === null || isNaN(prevHeading)) return newHeading;
+    if (newHeading === null || isNaN(newHeading)) return prevHeading;
+
+    let diff = newHeading - prevHeading;
+    while (diff < -180) diff += 360;
+    while (diff > 180) diff -= 360;
+
+    const smoothed = prevHeading + diff * alpha;
+    return ((smoothed % 360) + 360) % 360;
+  }
 }
