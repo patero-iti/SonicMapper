@@ -507,7 +507,7 @@ body:not(.pin-drop-mode) .pin-drop-banner {
    ========================================================================== */
 .vertical-volume-hud {
   position: absolute;
-  bottom: 24px;
+  bottom: 40px;
   left: 16px;
   z-index: 25;
   background: var(--bg-glass);
@@ -1313,10 +1313,15 @@ body:not(.pin-drop-mode) .pin-drop-banner {
     right: 10px !important;
   }
 
-  /* Lower-Left Vertical Volume Slider */
+  .maplibregl-ctrl-bottom-right {
+    bottom: calc(75px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 10px !important;
+  }
+
+  /* Lower-Left Vertical Volume Slider (Raised to clear phone navigation buttons) */
   .vertical-volume-hud {
-    bottom: 16px;
-    left: 12px;
+    bottom: calc(75px + env(safe-area-inset-bottom, 0px));
+    left: 14px;
     padding: 8px 6px;
     border-radius: 20px;
   }
@@ -1331,8 +1336,8 @@ body:not(.pin-drop-mode) .pin-drop-banner {
 
   /* Move vertical volume slider up if drawer opens */
   body.drawer-open .vertical-volume-hud {
-    transform: translateY(-220px);
-    opacity: 0.85;
+    transform: translateY(-280px);
+    opacity: 0.9;
   }
 
   /* Diagnostics Overlay on Portrait Mobile */
