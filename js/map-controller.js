@@ -39,7 +39,7 @@ export class MapController {
     });
 
     this.map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
-    this.map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+    this.map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
 
     // Handle missing sprite patterns gracefully (e.g. wood-pattern)
     this.map.on('styleimagemissing', (e) => {

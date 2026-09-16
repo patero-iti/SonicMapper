@@ -41,97 +41,200 @@
           <path d="M2 12h20" />
         </svg>
         <span class="brand-title">SonicMapper</span>
-        <span id="version-badge" class="version-pill" title="View Build Info">v0.3.1</span>
+        <span id="version-badge" class="version-pill" title="View Build Info">v0.3.2</span>
       </div>
 
-      <!-- Action Tools HUD -->
-      <div class="action-tools-hud">
-        <button id="btn-add-sound" class="hud-tool-btn btn-primary-action" title="Add New Sound Pin">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+      <!-- Header Actions: Quick Add + Burger Menu Button -->
+      <div class="header-actions">
+        <button id="btn-quick-add" class="btn-quick-add" title="Add Sound Marker at current position">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Add Sound
+          <span class="btn-quick-text">Add Sound</span>
         </button>
-        <button id="btn-export-geojson" class="hud-tool-btn" title="Export Map to GeoJSON">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Export
+        <button id="btn-menu-toggle" class="btn-burger" aria-label="Toggle Menu" title="Menu & Options">
+          <span class="burger-bar"></span>
+          <span class="burger-bar"></span>
+          <span class="burger-bar"></span>
         </button>
-        <label for="input-import-geojson" class="hud-tool-btn" style="cursor: pointer;" title="Import GeoJSON Map">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          Import
-          <input type="file" id="input-import-geojson" accept=".geojson,application/json" style="display: none;">
-        </label>
-      </div>
-
-      <!-- Mode Selector HUD -->
-      <div class="mode-selector-hud">
-        <button class="mode-btn active" data-mode="mock-gps" title="Draggable listener on map">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-          Mock GPS
-        </button>
-        <button class="mode-btn" data-mode="location" title="Mobile device live GPS">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <polygon points="12 2 15 8 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 8 12 2" />
-          </svg>
-          Live GPS
-        </button>
-        <button class="mode-btn" data-mode="static" title="Manual archival inspection">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-            <line x1="8" y1="21" x2="16" y2="21" />
-            <line x1="12" y1="17" x2="12" y2="21" />
-          </svg>
-          Static Mode
-        </button>
-      </div>
-
-      <!-- Map Theme Selector HUD -->
-      <div class="map-theme-hud">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-          <line x1="8" y1="2" x2="8" y2="18" />
-          <line x1="16" y1="6" x2="16" y2="22" />
-        </svg>
-        <select id="select-map-theme" class="theme-select" title="Switch Map Visual Theme">
-          <option value="positron" selected>Positron Light (Default)</option>
-          <option value="dadaa_noir">Radio DADAA Noir</option>
-          <option value="dark">Dark Vector</option>
-          <option value="liberty">Liberty Detailed</option>
-          <option value="bright">Bright Vector</option>
-        </select>
-      </div>
-
-      <!-- Master Audio HUD -->
-      <div class="master-audio-hud">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-        </svg>
-        <input type="range" id="master-volume" class="volume-slider" min="0" max="1" step="0.01" value="0.85">
-        <span id="volume-val">85%</span>
       </div>
     </header>
 
+    <!-- Slide-over Navigation / Burger Menu Backdrop & Drawer -->
+    <div id="menu-backdrop" class="menu-backdrop hidden"></div>
+    <aside id="menu-drawer" class="menu-drawer hidden">
+      <div class="menu-drawer-header">
+        <div class="menu-drawer-brand">
+          <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+            <path d="M2 12h20" />
+          </svg>
+          <h2>Controls & Options</h2>
+        </div>
+        <button id="btn-close-menu" class="btn-icon-close" title="Close Menu">✕</button>
+      </div>
+
+      <div class="menu-drawer-body">
+        <!-- Section: Sound Marker Tools -->
+        <div class="menu-section">
+          <div class="menu-section-title">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+            Sound Markers & Data
+          </div>
+          <div class="menu-btn-stack">
+            <button id="btn-add-sound" class="menu-action-btn primary-action">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>+ Place Sound Marker</span>
+            </button>
+            <div class="menu-btn-row">
+              <button id="btn-export-geojson" class="menu-action-btn secondary-action" title="Export Map to GeoJSON">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>Export GeoJSON</span>
+              </button>
+              <label for="input-import-geojson" class="menu-action-btn secondary-action" style="cursor: pointer;" title="Import GeoJSON Map">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <span>Import</span>
+                <input type="file" id="input-import-geojson" accept=".geojson,application/json" style="display: none;">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: GPS & Positioning Modes -->
+        <div class="menu-section">
+          <div class="menu-section-title">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polygon points="12 2 15 8 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 8 12 2"></polygon>
+            </svg>
+            GPS & Listener Mode
+          </div>
+          <div class="menu-mode-grid">
+            <button class="mode-btn active" data-mode="mock-gps" title="Draggable listener on map">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              <div class="mode-text-group">
+                <span class="mode-title">Mock GPS</span>
+                <span class="mode-desc">Drag listener on map</span>
+              </div>
+            </button>
+            <button class="mode-btn" data-mode="location" title="Mobile device live GPS">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polygon points="12 2 15 8 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 8 12 2" />
+              </svg>
+              <div class="mode-text-group">
+                <span class="mode-title">Live Device GPS</span>
+                <span class="mode-desc">Real-time mobile tracking & compass</span>
+              </div>
+            </button>
+            <button class="mode-btn" data-mode="static" title="Manual archival inspection">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+              <div class="mode-text-group">
+                <span class="mode-title">Static Mode</span>
+                <span class="mode-desc">Audition pins individually</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section: Map Visual Theme -->
+        <div class="menu-section">
+          <div class="menu-section-title">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+              <line x1="8" y1="2" x2="8" y2="18" />
+              <line x1="16" y1="6" x2="16" y2="22" />
+            </svg>
+            Map Visual Theme
+          </div>
+          <div class="menu-theme-container">
+            <select id="select-map-theme" class="menu-theme-select" title="Switch Map Visual Theme">
+              <option value="positron" selected>Positron Light (Default)</option>
+              <option value="dadaa_noir">Radio DADAA Noir (Brand)</option>
+              <option value="dark">Dark Vector</option>
+              <option value="liberty">Liberty Detailed</option>
+              <option value="bright">Bright Vector</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section: Diagnostics & Radar Overlay Toggle -->
+        <div class="menu-section">
+          <div class="menu-section-title">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="2"></circle>
+              <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+            </svg>
+            Listener Radar HUD
+          </div>
+          <button id="btn-toggle-diagnostics" class="menu-action-btn secondary-action">
+            <span id="btn-toggle-diag-text">📡 Toggle Radar Overlay</span>
+          </button>
+        </div>
+
+        <!-- Section: About & Information -->
+        <div class="menu-section menu-footer">
+          <div class="menu-info-row">
+            <span>Radio DADAA Sound Cartography</span>
+            <span class="version-pill" id="menu-version-badge">v0.3.2</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Lower-Left Vertical Master Volume Control HUD -->
+    <div class="vertical-volume-hud" id="vertical-volume-hud" title="Master Spatial Volume">
+      <span id="volume-val" class="volume-val-badge">85%</span>
+      <div class="volume-slider-track-wrap">
+        <input type="range" id="master-volume" class="vertical-volume-slider" min="0" max="1" step="0.01" value="0.85" orient="vertical" aria-label="Master Volume">
+      </div>
+      <button id="btn-volume-mute" class="btn-volume-mute" title="Mute / Unmute Volume" aria-label="Mute Audio">
+        <svg id="icon-vol-high" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+        </svg>
+        <svg id="icon-vol-muted" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+          <line x1="23" y1="9" x2="17" y2="15" />
+          <line x1="17" y1="9" x2="23" y2="15" />
+        </svg>
+      </button>
+    </div>
+
     <!-- Diagnostics HUD Overlay -->
-    <aside class="diagnostics-hud">
+    <aside class="diagnostics-hud" id="diagnostics-hud">
       <div class="hud-header">
         <span>Listener Status</span>
-        <span id="hud-mode-text" class="hud-badge">MOCK GPS</span>
+        <button id="btn-close-diagnostics" class="btn-mini-close" title="Hide HUD">✕</button>
       </div>
-      <div id="hud-coords" class="hud-coords">--°N, --°E</div>
+      <div class="hud-subhead">
+        <span id="hud-mode-text" class="hud-badge">MOCK GPS</span>
+        <div id="hud-coords" class="hud-coords">--°N, --°E</div>
+      </div>
       
       <div class="radar-section-title">Audible Sound Sources</div>
       <div id="active-sounds-list">

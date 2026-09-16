@@ -58,29 +58,121 @@ export class UIController {
       });
     }
 
-    // Master Volume Slider
+    // Burger Navigation Menu Toggle & Backdrop
+    const menuToggleBtn = document.getElementById('btn-menu-toggle');
+    const menuCloseBtn = document.getElementById('btn-close-menu');
+    const menuBackdrop = document.getElementById('menu-backdrop');
+    const menuDrawer = document.getElementById('menu-drawer');
+
+    const openMenu = () => {
+      menuDrawer?.classList.remove('hidden');
+      menuBackdrop?.classList.remove('hidden');
+      menuToggleBtn?.classList.add('active');
+    };
+
+    const closeMenu = () => {
+      menuDrawer?.classList.add('hidden');
+      menuBackdrop?.classList.add('hidden');
+      menuToggleBtn?.classList.remove('active');
+    };
+
+    if (menuToggleBtn) {
+      menuToggleBtn.addEventListener('click', () => {
+        if (menuDrawer?.classList.contains('hidden')) {
+          openMenu();
+        } else {
+          closeMenu();
+        }
+      });
+    }
+
+    if (menuCloseBtn) menuCloseBtn.addEventListener('click', closeMenu);
+    if (menuBackdrop) menuBackdrop.addEventListener('click', closeMenu);
+
+    // Quick Add Button in Header
+    const quickAddBtn = document.getElementById('btn-quick-add');
+    if (quickAddBtn) {
+      quickAddBtn.addEventListener('click', () => {
+        closeMenu();
+        this.toggleAddPinMode();
+      });
+    }
+
+    // Lower-Left Master Volume Slider & Mute Toggle
     const volumeSlider = document.getElementById('master-volume');
+    const volumeVal = document.getElementById('volume-val');
+    const muteBtn = document.getElementById('btn-volume-mute');
+    const iconVolHigh = document.getElementById('icon-vol-high');
+    const iconVolMuted = document.getElementById('icon-vol-muted');
+    let previousVolume = 0.85;
+
+    const updateVolumeUI = (val) => {
+      if (volumeVal) volumeVal.innerText = `${Math.round(val * 100)}%`;
+      if (val === 0) {
+        if (iconVolHigh) iconVolHigh.style.display = 'none';
+        if (iconVolMuted) iconVolMuted.style.display = 'block';
+      } else {
+        if (iconVolHigh) iconVolHigh.style.display = 'block';
+        if (iconVolMuted) iconVolMuted.style.display = 'none';
+      }
+    };
+
     if (volumeSlider) {
       volumeSlider.addEventListener('input', (e) => {
         const val = parseFloat(e.target.value);
         this.audio.setMasterVolume(val);
-        document.getElementById('volume-val').innerText = `${Math.round(val * 100)}%`;
+        if (val > 0) previousVolume = val;
+        updateVolumeUI(val);
       });
     }
 
-    // Mode Selector Buttons
+    if (muteBtn) {
+      muteBtn.addEventListener('click', () => {
+        if (this.audio.masterVolume > 0) {
+          previousVolume = this.audio.masterVolume;
+          this.audio.setMasterVolume(0);
+          if (volumeSlider) volumeSlider.value = 0;
+          updateVolumeUI(0);
+        } else {
+          const restoreVal = previousVolume > 0 ? previousVolume : 0.85;
+          this.audio.setMasterVolume(restoreVal);
+          if (volumeSlider) volumeSlider.value = restoreVal;
+          updateVolumeUI(restoreVal);
+        }
+      });
+    }
+
+    // Mode Selector Buttons (inside Burger Menu)
     document.querySelectorAll('.mode-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const mode = e.currentTarget.dataset.mode;
         this.setMode(mode);
+        closeMenu();
       });
     });
 
-    // Map Theme Switcher Dropdown
+    // Map Theme Switcher Dropdown (inside Burger Menu)
     const themeSelect = document.getElementById('select-map-theme');
     if (themeSelect) {
       themeSelect.addEventListener('change', (e) => {
         this.map.setMapTheme(e.target.value);
+      });
+    }
+
+    // Diagnostics / Radar Overlay Toggle & Close
+    const diagHUD = document.getElementById('diagnostics-hud');
+    const toggleDiagBtn = document.getElementById('btn-toggle-diagnostics');
+    const closeDiagBtn = document.getElementById('btn-close-diagnostics');
+
+    if (toggleDiagBtn) {
+      toggleDiagBtn.addEventListener('click', () => {
+        diagHUD?.classList.toggle('hidden');
+        closeMenu();
+      });
+    }
+    if (closeDiagBtn) {
+      closeDiagBtn.addEventListener('click', () => {
+        diagHUD?.classList.add('hidden');
       });
     }
 
@@ -164,10 +256,11 @@ export class UIController {
       });
     }
 
-    // "+ Add Sound" Button in Top Bar
+    // "+ Add Sound" Button (inside Burger Menu)
     const addSoundBtn = document.getElementById('btn-add-sound');
     if (addSoundBtn) {
       addSoundBtn.addEventListener('click', () => {
+        closeMenu();
         this.toggleAddPinMode();
       });
     }
@@ -245,6 +338,7 @@ export class UIController {
             ? this.map.features
             : await this.storage.getAllFeatures();
           await this.storage.exportGeoJSON(currentFeatures);
+          closeMenu();
         } catch (err) {
           console.error('Failed to export GeoJSON:', err);
           alert('Export failed: ' + err.message);
@@ -269,6 +363,7 @@ export class UIController {
             }
             this.updateHUD();
             alert(`Successfully imported ${geoData.features.length} soundscapes!`);
+            closeMenu();
           }
         } catch (err) {
           alert('Error importing GeoJSON: ' + err.message);
@@ -277,16 +372,20 @@ export class UIController {
       });
     }
 
-    // Diagnostic / Version Modal Toggle
+    // Diagnostic / Version Modal Toggle (Top Badge & Menu Footer)
     const versionBadge = document.getElementById('version-badge');
+    const menuVersionBadge = document.getElementById('menu-version-badge');
     const versionModal = document.getElementById('version-modal');
     const closeVersionBtn = document.getElementById('btn-close-version');
 
-    if (versionBadge && versionModal) {
-      versionBadge.addEventListener('click', () => {
-        versionModal.classList.remove('hidden');
-      });
-    }
+    const showVersionModal = () => {
+      closeMenu();
+      versionModal?.classList.remove('hidden');
+    };
+
+    if (versionBadge) versionBadge.addEventListener('click', showVersionModal);
+    if (menuVersionBadge) menuVersionBadge.addEventListener('click', showVersionModal);
+
     if (closeVersionBtn && versionModal) {
       closeVersionBtn.addEventListener('click', () => {
         versionModal.classList.add('hidden');
@@ -559,6 +658,7 @@ export class UIController {
   openFeatureDetails(feature) {
     this.selectedFeature = feature;
     this.isDrawerOpen = true;
+    document.body.classList.add('drawer-open');
 
     const drawer = document.getElementById('playback-drawer');
     drawer.classList.remove('collapsed');
@@ -627,6 +727,7 @@ export class UIController {
 
   closeDrawer() {
     this.isDrawerOpen = false;
+    document.body.classList.remove('drawer-open');
     document.getElementById('playback-drawer').classList.add('collapsed');
   }
 
