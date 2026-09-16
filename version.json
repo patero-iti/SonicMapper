@@ -1,20 +1,20 @@
 {
   "name": "SonicMapper",
-  "version": "0.3.1",
-  "stage": "Phase 2+: Sound Marker Editing & Drag Relocation",
-  "buildDate": "2026-09-12",
-  "commit": "marker-editing-and-drag-relocation",
+  "version": "0.3.2",
+  "stage": "Phase 2+: Mobile-First Navigation & Ergonomic Vertical Volume Control",
+  "buildDate": "2026-09-16",
+  "commit": "mobile-burger-menu-vertical-volume",
   "features": [
+    "Slide-over Burger Navigation Menu (Sound Marker Management, GPS Modes, Theme Switcher, Radar Toggle)",
+    "Lower-Left Vertical Master Spatial Volume Slider with Quick-Mute Toggle & Dynamic Readout",
+    "Streamlined Mobile Portrait Header with Quick-Add Action and Collapsible Menu Drawer",
+    "Enhanced Touch Ergonomics for Portrait Smartphones & Mobile Viewport Navigation",
     "Interactive Sound Marker Editing Modal (Title, Artist, Taxonomy, Spatial Format, Radius, Hardware, Notes, Audio replacement)",
     "Direct Drag-and-Drop Map Marker Repositioning with Real-Time Acoustic Proximity Ring tracking",
     "One-Click '📍 Move Pin' Cartographic Relocation Mode with Helper Banner",
     "Instant Web Audio Spatial Recalculation on Marker Move (Distance Attenuation, Compass Bearing & Proximity Gain)",
-    "Client-Side IndexedDB Auto-Sync on Drag and Edit",
-    "First-Order Ambisonics (FOA) 4-Channel Decoder (AmbiX & FuMa)",
-    "Real-Time Soundfield Yaw Rotation Matrix tied to Listener Compass Heading",
+    "First-Order Ambisonics (FOA) 4-Channel Decoder (AmbiX & FuMa) with Real-Time Yaw Rotation",
     "Positron Light Default Map & Interactive Multi-Theme Switcher",
-    "OpenFreeMap Dark Vector Map Engine (100% Free / GPU Accelerated)",
-    "Interactive '+ Add Sound' Map Pin Dropping & Channel Format Selector",
     "Real-Time Waveform & FFT Visualizer Drawer"
   ]
 }
