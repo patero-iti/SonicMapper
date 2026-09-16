@@ -23,6 +23,7 @@ export class MapController {
     this.isAddingPin = false;
     this.relocatingFeatureId = null;
     this.currentTheme = 'positron'; // 'positron' (default), 'dadaa_noir', 'dark', 'liberty', 'bright'
+    this.currentHeading = 0;
   }
 
   /**
@@ -133,14 +134,16 @@ export class MapController {
   }
 
   /**
-   * Set up draggable Listener Node (with pulsing radar ring)
+   * Set up draggable Listener Node (with pulsing radar ring & heading direction cone)
    */
   setupListenerMarker() {
     const el = document.createElement('div');
     el.className = 'listener-marker-container';
     el.innerHTML = `
+      <div class="listener-heading-cone"></div>
       <div class="listener-pulse"></div>
       <div class="listener-pin">
+        <div class="listener-arrow"></div>
         <div class="listener-dot"></div>
       </div>
       <div class="listener-label">LISTENER</div>
@@ -166,6 +169,25 @@ export class MapController {
         this.onListenerMove([lngLat.lng, lngLat.lat]);
       }
     });
+  }
+
+  /**
+   * Updates listener visual orientation / compass heading cone on map
+   */
+  setListenerHeading(headingDegrees) {
+    if (headingDegrees === null || isNaN(headingDegrees)) return;
+    this.currentHeading = headingDegrees;
+    const el = this.listenerMarker?.getElement();
+    if (!el) return;
+
+    const cone = el.querySelector('.listener-heading-cone');
+    const pin = el.querySelector('.listener-pin');
+    if (cone) {
+      cone.style.transform = `translate(-50%, -50%) rotate(${headingDegrees}deg)`;
+    }
+    if (pin) {
+      pin.style.transform = `translate(-50%, -50%) rotate(${headingDegrees}deg)`;
+    }
   }
 
   /**

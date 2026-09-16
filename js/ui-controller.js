@@ -14,6 +14,13 @@ export class UIController {
     this.pendingDropCoords = null;
     this.animationFrameId = null;
 
+    // Phase 2 Mobile Sensor & Field State
+    this.lastGpsCoords = null;
+    this.currentHeading = 0;
+    this.wakeLock = null;
+    this.orientationHandler = null;
+    this.geoWatchId = null;
+
     // Canvas elements
     this.canvasWave = document.getElementById('visualizer-canvas');
     this.canvasCtx = this.canvasWave?.getContext('2d');
@@ -44,6 +51,7 @@ export class UIController {
     };
 
     this.bindEvents();
+    this.initMediaSession();
     this.startVisualizerLoop();
   }
 
@@ -617,7 +625,7 @@ export class UIController {
   }
 
   /**
-   * Browser Geolocation API watchPosition
+   * Browser Geolocation API watchPosition with adaptive jitter filtering and compass binding
    */
   startGeolocationTracking() {
     if (!navigator.geolocation) {
@@ -626,12 +634,25 @@ export class UIController {
       return;
     }
 
+    this.startOrientationTracking();
+    this.requestWakeLock();
+
     this.geoWatchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const coords = [pos.coords.longitude, pos.coords.latitude];
-        const heading = pos.coords.heading || 0;
-        this.audio.updateListenerPosition(coords, heading);
-        this.map.setListenerCoordinates(coords, true);
+        const rawCoords = [pos.coords.longitude, pos.coords.latitude];
+        const smoothedCoords = GeoEngine.smoothCoordinates(this.lastGpsCoords, rawCoords);
+        this.lastGpsCoords = smoothedCoords;
+
+        const heading = (pos.coords.heading !== null && !isNaN(pos.coords.heading) && pos.coords.heading >= 0)
+          ? pos.coords.heading
+          : this.currentHeading;
+
+        this.audio.updateListenerPosition(smoothedCoords, heading);
+        this.map.setListenerCoordinates(smoothedCoords, true);
+        if (heading) {
+          this.map.setListenerHeading(heading);
+          this.updateHUDHeading(heading);
+        }
         this.updateHUD();
       },
       (err) => {
@@ -649,6 +670,134 @@ export class UIController {
     if (this.geoWatchId) {
       navigator.geolocation.clearWatch(this.geoWatchId);
       this.geoWatchId = null;
+    }
+    this.stopOrientationTracking();
+    this.releaseWakeLock();
+  }
+
+  /**
+   * Device Orientation Magnetometer & Compass Heading Tracking
+   */
+  async startOrientationTracking() {
+    if (this.orientationHandler) return;
+
+    const handleOrientation = (e) => {
+      let rawHeading = null;
+      if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+        // iOS Safari provides absolute north heading
+        rawHeading = e.webkitCompassHeading;
+      } else if (e.alpha !== null && !isNaN(e.alpha)) {
+        // Android / Chrome provides alpha degrees
+        rawHeading = (360 - e.alpha) % 360;
+      }
+
+      if (rawHeading !== null && !isNaN(rawHeading)) {
+        const smoothedHeading = GeoEngine.smoothHeading(this.currentHeading, rawHeading, 0.25);
+        this.currentHeading = smoothedHeading;
+        this.audio.updateListenerHeading(smoothedHeading);
+        this.map.setListenerHeading(smoothedHeading);
+        this.updateHUDHeading(smoothedHeading);
+      }
+    };
+
+    // Check for iOS 13+ permission requirement
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      try {
+        const permission = await DeviceOrientationEvent.requestPermission();
+        if (permission === 'granted') {
+          window.addEventListener('deviceorientation', handleOrientation, true);
+          this.orientationHandler = handleOrientation;
+        }
+      } catch (err) {
+        console.warn('Device orientation permission dismissed:', err);
+      }
+    } else if ('ondeviceorientationabsolute' in window) {
+      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+      this.orientationHandler = handleOrientation;
+    } else if ('ondeviceorientation' in window) {
+      window.addEventListener('deviceorientation', handleOrientation, true);
+      this.orientationHandler = handleOrientation;
+    }
+  }
+
+  stopOrientationTracking() {
+    if (this.orientationHandler) {
+      window.removeEventListener('deviceorientationabsolute', this.orientationHandler, true);
+      window.removeEventListener('deviceorientation', this.orientationHandler, true);
+      this.orientationHandler = null;
+    }
+  }
+
+  /**
+   * Screen Wake Lock API to keep screen on during outdoor field soundwalks
+   */
+  async requestWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        this.wakeLock = await navigator.wakeLock.request('screen');
+        document.addEventListener('visibilitychange', this.handleVisibilityChange);
+      } catch (err) {
+        console.warn('Screen WakeLock error:', err.message);
+      }
+    }
+  }
+
+  async releaseWakeLock() {
+    if (this.wakeLock) {
+      try {
+        await this.wakeLock.release();
+        this.wakeLock = null;
+      } catch (e) {}
+    }
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+  }
+
+  handleVisibilityChange = async () => {
+    if (document.visibilityState === 'visible' && this.map.mode === 'location' && !this.wakeLock) {
+      await this.requestWakeLock();
+    }
+  };
+
+  /**
+   * Media Session API for mobile lock screen metadata and background spatial audio controls
+   */
+  initMediaSession() {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: 'SonicMapper Spatial Field Soundscape',
+        artist: 'Radio DADAA Sound Art Cartography',
+        album: 'Binaural FOA Acoustic Ecology',
+        artwork: [
+          { src: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 100 100"%3E%3Crect width="100" height="100" rx="20" fill="%23231218"/%3E%3Ccircle cx="50" cy="50" r="30" fill="none" stroke="%23e83bb2" stroke-width="8"/%3E%3C/svg%3E', sizes: '96x96', type: 'image/svg+xml' }
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', async () => {
+        await this.audio.unlock();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        this.audio.setMasterVolume(0);
+      });
+    }
+  }
+
+  /**
+   * Helper to format degrees into cardinal direction (N, NE, E, SE, S, SW, W, NW)
+   */
+  getCardinalDirection(deg) {
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const index = Math.round(((deg % 360) + 360) % 360 / 45) % 8;
+    return directions[index];
+  }
+
+  /**
+   * Updates Heading indicator in diagnostics HUD
+   */
+  updateHUDHeading(heading) {
+    const headingEl = document.getElementById('hud-heading');
+    if (headingEl) {
+      const card = this.getCardinalDirection(heading);
+      headingEl.innerText = `🧭 ${Math.round(heading)}° ${card}`;
     }
   }
 
@@ -739,6 +888,7 @@ export class UIController {
     if (coordsEl && this.audio.listenerPosition) {
       coordsEl.innerText = GeoEngine.formatCoords(this.audio.listenerPosition);
     }
+    this.updateHUDHeading(this.currentHeading);
 
     const listEl = document.getElementById('active-sounds-list');
     if (listEl) {
