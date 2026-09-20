@@ -231,6 +231,57 @@
           "description": "Continuous ambient riparian acoustic habitat covering the Swan River shoreline. Seamlessly crossfades with focal dawn chorus and hydrophone nodes."
         }
       }
+    },
+    {
+      "type": "Feature",
+      "id": "walk_derbarl_yerrigan_trail_07",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [115.8550, -31.9545],
+          [115.8585, -31.9525],
+          [115.8615, -31.9495],
+          [115.8655, -31.9480],
+          [115.8685, -31.9465]
+        ]
+      },
+      "properties": {
+        "title": "Derbarl Yerrigan Foreshore Soundwalk",
+        "recordist": "Acoustic Cartography Collective",
+        "timestamp": "2026-04-16T07:30:00Z",
+        "synthType": "wind",
+        "audio": {
+          "format": "audio/synthetic",
+          "duration": 420.0,
+          "channels": 2,
+          "sampleRate": 48000,
+          "channelFormat": "binaural",
+          "micConfiguration": "Binaural Headset + Contact Hydrophone"
+        },
+        "spatialPlayback": {
+          "triggerType": "soundwalk_path",
+          "radiusMeters": 40,
+          "synthVolume": 0.4,
+          "audioVolume": 0.85,
+          "rolloff": "linear",
+          "loop": true,
+          "attenuationMaxDb": -45,
+          "waypoints": [
+            { "index": 0, "name": "Foreshore Trailhead", "coords": [115.8550, -31.9545], "radiusMeters": 35, "volume": 0.85, "synthType": "water" },
+            { "index": 1, "name": "Pelican Roost Lookout", "coords": [115.8585, -31.9525], "radiusMeters": 30, "volume": 0.9, "synthType": "birdsong" },
+            { "index": 2, "name": "Paperbark Wetland Boardwalk", "coords": [115.8615, -31.9495], "radiusMeters": 35, "volume": 0.8, "synthType": "wind" },
+            { "index": 3, "name": "Limestone Esplanade", "coords": [115.8655, -31.9480], "radiusMeters": 30, "volume": 0.75, "synthType": "water" },
+            { "index": 4, "name": "Estuary Point Pavilion", "coords": [115.8685, -31.9465], "radiusMeters": 40, "volume": 0.85, "synthType": "birdsong" }
+          ]
+        },
+        "archival": {
+          "license": "CC-BY-SA 4.0",
+          "taxonomies": ["biophony", "geophony"],
+          "weather": "Morning mist, 16°C, calm",
+          "equipment": "Sound Devices MixPre-3 + Soundman Binaural",
+          "description": "Guided spatial soundwalk trajectory tracing the riverbank path. Proximity activates dynamic narrative acoustic pacing along consecutive waypoints."
+        }
+      }
     }
   ]
 }

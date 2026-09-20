@@ -999,7 +999,6 @@ body:not(.pin-drop-mode) .pin-drop-banner {
 
 /* Map Markers */
 .listener-marker-container {
-  position: relative;
   width: 40px;
   height: 40px;
   cursor: grab;
@@ -1110,7 +1109,7 @@ body:not(.pin-drop-mode) .pin-drop-banner {
   justify-content: center;
   cursor: grab;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: box-shadow 0.2s ease, opacity 0.2s ease;
   border: 2px solid #ffffff;
 }
 
@@ -1119,7 +1118,18 @@ body:not(.pin-drop-mode) .pin-drop-banner {
 }
 
 .sound-pin-marker:hover {
-  transform: scale(1.22);
+  box-shadow: 0 0 22px rgba(232, 59, 178, 0.95), 0 4px 15px rgba(0, 0, 0, 0.8);
+}
+
+.sound-pin-marker:hover .pin-icon {
+  transform: scale(1.2);
+}
+
+.pin-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .pin-biophony { background: var(--tax-biophony); color: #fff; }
@@ -1165,7 +1175,10 @@ body:not(.pin-drop-mode) .pin-drop-banner {
   justify-content: center;
 }
 
-.splash-overlay.hidden, .modal-backdrop.hidden {
+.hidden,
+.splash-overlay.hidden,
+.modal-backdrop.hidden,
+.viewport-drop-overlay.hidden {
   display: none !important;
 }
 
@@ -1490,3 +1503,966 @@ body:not(.pin-drop-mode) .pin-drop-banner {
     width: 100%;
   }
 }
+
+/* ==========================================================================
+   Phase 4: PWA Network Badge, Soundwalk Paths & Drop Overlay
+   ========================================================================== */
+
+/* Network Status Badge in Brand Header */
+.network-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+}
+
+.network-badge.online {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.4);
+}
+
+.network-badge.offline {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+}
+
+/* Soundwalk Trailhead Marker Pin */
+.pin-soundwalk-path {
+  background: linear-gradient(135deg, #e83bb2 0%, #38bdf8 100%) !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 16px rgba(232, 59, 178, 0.8) !important;
+}
+
+/* Numbered Waypoint Dot Markers along Trail */
+.soundwalk-waypoint-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--brand-black);
+  border: 2px solid var(--brand-hot-pink);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 10px rgba(232, 59, 178, 0.5);
+  transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.soundwalk-waypoint-dot span {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.soundwalk-waypoint-dot:hover {
+  background: var(--brand-hot-pink);
+  color: var(--brand-black);
+  box-shadow: 0 0 18px rgba(232, 59, 178, 0.95);
+}
+
+.soundwalk-waypoint-dot:hover span {
+  transform: scale(1.25);
+}
+
+.waypoint-tooltip {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--brand-black);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.15s ease;
+  border: 1px solid var(--brand-hot-pink);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.soundwalk-waypoint-dot:hover .waypoint-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Fullscreen Viewport Drag & Drop Ingestion Overlay */
+.viewport-drop-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  background: rgba(24, 12, 18, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  pointer-events: auto;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.viewport-drop-overlay.hidden {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.drop-modal-box {
+  background: var(--bg-surface);
+  border: 2px dashed var(--brand-hot-pink);
+  border-radius: 20px;
+  padding: 36px 28px;
+  max-width: 440px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(232, 59, 178, 0.35);
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+.drop-icon-anim {
+  font-size: 48px;
+  margin-bottom: 12px;
+  animation: bounce 1s infinite alternate ease-in-out;
+}
+
+@keyframes bounce {
+  from { transform: translateY(0); }
+  to { transform: translateY(-8px); }
+}
+
+.drop-modal-box h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.drop-modal-box p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   Polygon Geofence Zone Drawing & Vertex Reshaping
+   ========================================================================== */
+.polygon-draw-banner,
+.polygon-edit-banner {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  background: rgba(18, 14, 20, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--brand-hot-pink);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 20px rgba(232, 59, 178, 0.35);
+  padding: 10px 18px;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  animation: slideDownBanner 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 90vw;
+}
+
+/* In Polygon Edit & Draw Modes, completely hide soundwalk trail waypoints and dim unrelated pins */
+body.polygon-edit-mode .soundwalk-waypoint-dot,
+body.polygon-draw-mode .soundwalk-waypoint-dot {
+  display: none !important;
+}
+
+body.polygon-edit-mode .sound-pin-marker,
+body.polygon-draw-mode .sound-pin-marker {
+  opacity: 0.15;
+  pointer-events: none;
+  filter: grayscale(0.8);
+  transition: opacity 0.3s ease;
+}
+
+.banner-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.banner-title-group span:first-child {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.banner-hint {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.banner-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-banner-action {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-banner-action.primary {
+  background: var(--brand-hot-pink);
+  color: var(--brand-black);
+  box-shadow: 0 2px 10px rgba(232, 59, 178, 0.5);
+}
+
+.btn-banner-action.primary:hover:not(:disabled) {
+  background: #ffffff;
+  color: var(--brand-black);
+  transform: scale(1.04);
+}
+
+.btn-banner-action.primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-banner-action.secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fcebf7;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.btn-banner-action.secondary:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Drawing Node Marker */
+.polygon-draw-node-marker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--brand-hot-pink);
+  border: 2px solid #ffffff;
+  color: var(--brand-black);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 14px rgba(232, 59, 178, 0.95);
+  cursor: pointer;
+  animation: pulse-node 1.5s infinite alternate;
+}
+
+@keyframes pulse-node {
+  0% { box-shadow: 0 0 8px rgba(232, 59, 178, 0.7); }
+  100% { box-shadow: 0 0 22px rgba(232, 59, 178, 1), 0 0 30px rgba(232, 59, 178, 0.85); }
+}
+
+@keyframes pulse-node-cyan {
+  0% { box-shadow: 0 0 8px rgba(6, 182, 212, 0.7); }
+  100% { box-shadow: 0 0 22px rgba(6, 182, 212, 1), 0 0 30px rgba(6, 182, 212, 0.85); }
+}
+
+/* Vertex Edit Handle Marker */
+.polygon-edit-vertex-handle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--brand-hot-pink);
+  border: 3px solid #ffffff;
+  color: var(--brand-black);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.8), 0 0 16px rgba(232, 59, 178, 0.9);
+  transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.polygon-edit-vertex-handle:hover {
+  background: #ffffff;
+  color: var(--brand-hot-pink);
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.9), 0 0 18px rgba(232, 59, 178, 1);
+}
+
+.polygon-edit-vertex-handle:active {
+  cursor: grabbing;
+}
+
+.vertex-handle-tooltip {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--brand-black);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  border: 1px solid var(--brand-hot-pink);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.polygon-edit-vertex-handle:hover .vertex-handle-tooltip {
+  opacity: 1;
+}
+
+/* Edge Midpoint Insert Handle (+) */
+.polygon-edit-midpoint-handle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(35, 18, 24, 0.85);
+  border: 2px solid var(--brand-hot-pink);
+  color: var(--brand-hot-pink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.polygon-edit-midpoint-handle:hover {
+  background: var(--brand-hot-pink);
+  color: var(--brand-black);
+  border-color: #ffffff;
+  box-shadow: 0 0 16px rgba(232, 59, 178, 0.95);
+}
+
+/* ==========================================================================
+   Soundwalk Path Trajectory Drawing & Reshaping
+   ========================================================================== */
+.soundwalk-draw-banner,
+.soundwalk-edit-banner {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  background: rgba(10, 20, 28, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid #06b6d4;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 20px rgba(6, 182, 212, 0.35);
+  padding: 10px 18px;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  animation: slideDownBanner 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 90vw;
+}
+
+/* Dim unrelated elements during Soundwalk Drawing & Editing */
+body.soundwalk-edit-mode .sound-pin-marker,
+body.soundwalk-draw-mode .sound-pin-marker,
+body.soundwalk-edit-mode .polygon-edit-vertex-handle,
+body.soundwalk-draw-mode .polygon-edit-vertex-handle {
+  opacity: 0.15;
+  pointer-events: none;
+  filter: grayscale(0.8);
+  transition: opacity 0.3s ease;
+}
+
+/* Soundwalk Drawing Node Marker */
+.soundwalk-draw-node-marker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #06b6d4;
+  border: 2px solid #ffffff;
+  color: #000000;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.95);
+  cursor: pointer;
+  animation: pulse-node-cyan 1.5s infinite alternate;
+}
+
+/* Soundwalk Reshape Waypoint Drag Handle */
+.soundwalk-edit-waypoint-handle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #06b6d4;
+  border: 3px solid #ffffff;
+  color: #000000;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.8), 0 0 16px rgba(6, 182, 212, 0.9);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.soundwalk-edit-waypoint-handle:hover {
+  background: #ffffff;
+  color: #0891b2;
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.9), 0 0 18px rgba(6, 182, 212, 1);
+}
+
+.soundwalk-edit-waypoint-handle:active {
+  cursor: grabbing;
+}
+
+.soundwalk-edit-waypoint-handle:hover .waypoint-handle-tooltip {
+  opacity: 1;
+}
+
+.waypoint-handle-tooltip {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0b151e;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  border: 1px solid #06b6d4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* Soundwalk Edge Midpoint Insert Handle (+) */
+.soundwalk-edit-midpoint-handle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(11, 21, 30, 0.85);
+  border: 2px solid #06b6d4;
+  color: #06b6d4;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.soundwalk-edit-midpoint-handle:hover {
+  background: #06b6d4;
+  color: #000000;
+  border-color: #ffffff;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.95);
+}
+
+/* Zone Stats Summary Badge */
+.zone-stats-grid {
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.stat-pill {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--brand-hot-pink);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Soundwalk Multi-Track Mixer & Waypoint Stem Deck Styles
+   ========================================================================== */
+
+.soundwalk-drawer-deck {
+  margin: 16px 0;
+  padding: 16px;
+  background: linear-gradient(145deg, rgba(6, 182, 212, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.soundwalk-deck-header {
+  margin-bottom: 14px;
+}
+
+.deck-title-badge {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 800;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.deck-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.soundwalk-mix-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 640px) {
+  .soundwalk-mix-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mix-channel-card {
+  background: rgba(11, 21, 30, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mix-channel-card:hover {
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow: 0 2px 10px rgba(6, 182, 212, 0.1);
+}
+
+.mix-channel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mix-channel-icon {
+  font-size: 18px;
+}
+
+.mix-channel-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.mix-channel-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.mix-channel-sub {
+  font-size: 10px;
+  color: #94a3b8;
+  font-family: var(--font-mono);
+}
+
+.mix-channel-val {
+  font-size: 12px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: #06b6d4;
+  min-width: 38px;
+  text-align: right;
+}
+
+.mix-channel-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-attach-audio-file {
+  background: rgba(6, 182, 212, 0.15);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-attach-audio-file:hover {
+  background: rgba(6, 182, 212, 0.35);
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+/* Waypoints Accordion */
+.soundwalk-waypoints-accordion {
+  background: rgba(11, 21, 30, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.accordion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.accordion-header:hover {
+  background: rgba(6, 182, 212, 0.08);
+}
+
+.accordion-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.accordion-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+.accordion-chevron {
+  font-size: 10px;
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+}
+
+.accordion-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  max-height: 280px;
+  overflow-y: auto;
+  transition: max-height 0.25s ease, padding 0.25s ease;
+}
+
+.accordion-content.collapsed {
+  max-height: 0;
+  padding: 0 12px;
+  overflow: hidden;
+}
+
+/* Drawer Waypoint Cards */
+.drawer-waypoint-card {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.drawer-waypoint-card:hover {
+  border-color: rgba(6, 182, 212, 0.4);
+}
+
+.drawer-waypoint-card.auditioning {
+  border-color: #e83bb2;
+  box-shadow: 0 0 12px rgba(232, 59, 178, 0.4);
+  background: rgba(232, 59, 178, 0.08);
+}
+
+.drawer-wp-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.drawer-wp-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-wp-badge {
+  background: #06b6d4;
+  color: #000;
+  font-size: 10px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.drawer-wp-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.drawer-wp-telemetry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-wp-dist {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.btn-wp-audition {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-wp-audition:hover {
+  background: rgba(232, 59, 178, 0.2);
+  border-color: #e83bb2;
+  color: #e83bb2;
+}
+
+.btn-wp-audition.active {
+  background: #e83bb2;
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.drawer-wp-mid {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+}
+
+.wp-stem-badge {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.wp-stem-badge.file-active {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.wp-stem-badge.synth-active {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(192, 132, 252, 0.3);
+}
+
+.wp-stem-badge.none {
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+}
+
+.drawer-wp-radius-tag {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.drawer-wp-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.drawer-wp-vol-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.drawer-wp-vol-group label {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.drawer-wp-vol-val {
+  font-weight: 800;
+  color: #06b6d4;
+  font-family: var(--font-mono);
+}
+
+.drawer-wp-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-wp-upload {
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  color: #38bdf8;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.btn-wp-upload:hover {
+  background: rgba(6, 182, 212, 0.3);
+  color: #ffffff;
+}
+
+.drawer-wp-synth-select {
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Modal Waypoint Cards */
+.modal-waypoints-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.modal-waypoint-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-wp-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-wp-badge {
+  background: #06b6d4;
+  color: #000;
+  font-size: 10px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.modal-wp-name-input {
+  font-size: 12px;
+  padding: 4px 8px;
+  height: 28px;
+  flex: 1;
+}
+
+.modal-wp-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 500px) {
+  .modal-wp-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.modal-wp-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modal-wp-col label {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.modal-wp-col .form-select,
+.modal-wp-col input[type="file"] {
+  font-size: 11px;
+}
+
+.modal-wp-col .wp-radius-val,
+.modal-wp-col .wp-vol-val {
+  font-weight: 700;
+  color: #06b6d4;
+  font-family: var(--font-mono);
+}
+

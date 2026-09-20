@@ -8,14 +8,31 @@
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='25' fill='%23231218'/%3E%3Ccircle cx='50' cy='50' r='35' fill='none' stroke='%23e83bb2' stroke-width='10'/%3E%3Ccircle cx='50' cy='50' r='14' fill='%23e83bb2'/%3E%3C/svg%3E" />
 
-  <!-- MapLibre GL CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <!-- PWA Manifest & Mobile Web App Capabilities -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#231218">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SonicMapper">
+
+  <!-- MapLibre GL CSS (Local & CDN Fallback) -->
+  <link rel="stylesheet" href="./style-maplibre.css" />
   
   <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
   <div id="app">
+    <!-- Fullscreen Drag & Drop Ingestion Overlay -->
+    <div id="viewport-drop-overlay" class="viewport-drop-overlay hidden">
+      <div class="drop-modal-box">
+        <div class="drop-icon-anim">📦</div>
+        <h3>Drop to Ingest Spatial Data</h3>
+        <p>Drop GeoJSON manifests (.geojson), OACP Archival Bundles (.oacp.json), or audio field captures (.wav, .mp3, .ogg) anywhere to import.</p>
+      </div>
+    </div>
+
     <!-- Map Canvas Container -->
     <div id="map-container"></div>
 
@@ -31,6 +48,56 @@
       <button id="btn-cancel-relocate" class="btn-cancel-banner">Done / Cancel</button>
     </div>
 
+    <!-- Polygon Drawing Helper Banner -->
+    <div id="polygon-draw-banner" class="polygon-draw-banner" style="display: none;">
+      <div class="banner-title-group">
+        <span>⬡ <strong>Drawing Geofence Zone</strong> (Vertices: <span id="draw-point-count">0</span>)</span>
+        <span class="banner-hint">Click map to add points • Min 3 points to complete</span>
+      </div>
+      <div class="banner-btn-group">
+        <button id="btn-finish-polygon" class="btn-banner-action primary" disabled>Finish Zone</button>
+        <button id="btn-undo-polygon" class="btn-banner-action secondary">Undo Point</button>
+        <button id="btn-cancel-polygon" class="btn-cancel-banner">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Polygon Vertex Edit / Reshape Banner -->
+    <div id="polygon-edit-banner" class="polygon-edit-banner" style="display: none;">
+      <div class="banner-title-group">
+        <span>⬡ <strong>Reshaping Zone</strong>: "<strong id="edit-polygon-title">Habitat Zone</strong>"</span>
+        <span class="banner-hint">Drag vertices to reshape • Click (+) to add point • Right-click vertex to delete</span>
+      </div>
+      <div class="banner-btn-group">
+        <button id="btn-save-polygon-edit" class="btn-banner-action primary">Save Boundary</button>
+        <button id="btn-cancel-polygon-edit" class="btn-cancel-banner">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Soundwalk Path Drawing Helper Banner -->
+    <div id="soundwalk-draw-banner" class="soundwalk-draw-banner" style="display: none;">
+      <div class="banner-title-group">
+        <span>🚶 <strong>Drawing Soundwalk Trail</strong> (Waypoints: <span id="draw-soundwalk-point-count">0</span> • <span id="draw-soundwalk-distance">0.0 m</span>)</span>
+        <span class="banner-hint">Click map to plot path nodes • Min 2 points to complete</span>
+      </div>
+      <div class="banner-btn-group">
+        <button id="btn-finish-soundwalk-draw" class="btn-banner-action primary" disabled>Finish Soundwalk</button>
+        <button id="btn-undo-soundwalk-draw" class="btn-banner-action secondary">Undo Point</button>
+        <button id="btn-cancel-soundwalk-draw" class="btn-cancel-banner">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Soundwalk Path Edit / Reshape Banner -->
+    <div id="soundwalk-edit-banner" class="soundwalk-edit-banner" style="display: none;">
+      <div class="banner-title-group">
+        <span>🚶 <strong>Reshaping Trail</strong>: "<strong id="edit-soundwalk-title">Soundwalk Route</strong>"</span>
+        <span class="banner-hint">Drag waypoint handles • Click (+) to insert waypoint • Right-click waypoint to delete</span>
+      </div>
+      <div class="banner-btn-group">
+        <button id="btn-save-soundwalk-edit" class="btn-banner-action primary">Save Path</button>
+        <button id="btn-cancel-soundwalk-edit" class="btn-cancel-banner">Cancel</button>
+      </div>
+    </div>
+
     <!-- Top Navigation Header -->
     <header class="top-header">
       <!-- Brand & Version -->
@@ -41,17 +108,32 @@
           <path d="M2 12h20" />
         </svg>
         <span class="brand-title">SonicMapper</span>
-        <span id="version-badge" class="version-pill" title="View Build Info">v0.5.0</span>
+        <span id="version-badge" class="version-pill" title="View Build Info">v0.8.0</span>
+        <span id="network-status-badge" class="network-badge online" title="Service Worker & Network Status">🟢 Online</span>
       </div>
 
       <!-- Header Actions: Quick Add + Burger Menu Button -->
       <div class="header-actions">
-        <button id="btn-quick-add" class="btn-quick-add" title="Add Sound Marker at current position">
+        <button id="btn-quick-add" class="btn-quick-add" title="Place Sound Marker on Map">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           <span class="btn-quick-text">Add Sound</span>
+        </button>
+        <button id="btn-quick-draw-polygon" class="btn-quick-add" title="Draw New Polygon Geofence Zone on Map">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+          <span class="btn-quick-text">Draw Zone</span>
+        </button>
+        <button id="btn-quick-draw-soundwalk" class="btn-quick-add" title="Draw New Guided Soundwalk Path on Map">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 4v16M13 4l-4 4M13 4l4 4M7 16l6 4 6-4" />
+          </svg>
+          <span class="btn-quick-text">Soundwalk</span>
         </button>
         <button id="btn-menu-toggle" class="btn-burger" aria-label="Toggle Menu" title="Menu & Options">
           <span class="burger-bar"></span>
@@ -71,7 +153,7 @@
             <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
             <path d="M2 12h20" />
           </svg>
-          <h2>Controls & Options</h2>
+          <h3>SonicMapper</h3>
         </div>
         <button id="btn-close-menu" class="btn-icon-close" title="Close Menu">✕</button>
       </div>
@@ -95,6 +177,20 @@
               </svg>
               <span>+ Place Sound Marker</span>
             </button>
+            <button id="btn-draw-polygon" class="menu-action-btn primary-action" style="background: linear-gradient(135deg, #d946ef 0%, #e83bb2 100%);">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+              </svg>
+              <span>+ Draw Polygon Zone</span>
+            </button>
+            <button id="btn-draw-soundwalk" class="menu-action-btn primary-action" style="background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 4v16M13 4l-4 4M13 4l4 4M7 16l6 4 6-4" />
+              </svg>
+              <span>+ Draw Soundwalk Path</span>
+            </button>
             <div class="menu-btn-row">
               <button id="btn-export-geojson" class="menu-action-btn secondary-action" title="Export Map to GeoJSON">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
@@ -102,16 +198,24 @@
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                <span>Export GeoJSON</span>
+                <span>GeoJSON</span>
               </button>
-              <label for="input-import-geojson" class="menu-action-btn secondary-action" style="cursor: pointer;" title="Import GeoJSON Map">
+              <button id="btn-export-oacp" class="menu-action-btn secondary-action" title="Export Complete OACP Archival Package with embedded audio">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                  <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                <span>OACP Bundle</span>
+              </button>
+              <label for="input-import-geojson" class="menu-action-btn secondary-action" style="cursor: pointer;" title="Import GeoJSON or OACP Package">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="17 8 12 3 7 8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
                 <span>Import</span>
-                <input type="file" id="input-import-geojson" accept=".geojson,application/json" style="display: none;">
+                <input type="file" id="input-import-geojson" accept=".geojson,.json,.oacp.json,application/json" style="display: none;">
               </label>
             </div>
           </div>
@@ -200,7 +304,7 @@
         <div class="menu-section menu-footer">
           <div class="menu-info-row">
             <span>Radio DADAA Sound Cartography</span>
-            <span class="version-pill" id="menu-version-badge">v0.5.0</span>
+            <span class="version-pill" id="menu-version-badge">v0.8.0</span>
           </div>
         </div>
       </div>
@@ -264,6 +368,12 @@
           <button id="btn-download-sound" class="btn-edit-outline" title="Download Recording Audio File">
             ⬇ Audio
           </button>
+          <button id="btn-edit-polygon-shape" class="btn-edit-outline" title="Reshape Polygon Boundary Vertices on Map" style="display: none;">
+            ⬡ Edit Boundary
+          </button>
+          <button id="btn-edit-soundwalk-shape" class="btn-edit-outline" title="Reshape Soundwalk Trail & Waypoints on Map" style="display: none;">
+            🚶 Edit Trail
+          </button>
           <button id="btn-edit-pin" class="btn-edit-outline" title="Edit Recording Metadata & Settings">
             ✏️ Edit
           </button>
@@ -288,6 +398,61 @@
       </div>
       <div class="visualizer-container">
         <canvas id="visualizer-canvas"></canvas>
+      </div>
+
+      <!-- Soundwalk Multi-Track Dual Mix & Waypoints Audio Deck -->
+      <div id="soundwalk-drawer-deck" class="soundwalk-drawer-deck" style="display: none;">
+        <div class="soundwalk-deck-header">
+          <div class="deck-title-badge">🚶 Soundwalk Multi-Track Mixer</div>
+          <div class="deck-subtitle">Simultaneous Synthetic Ambience Bed + Master Trail Audio + Waypoint Stems</div>
+        </div>
+
+        <!-- Dual Master Mix Sliders -->
+        <div class="soundwalk-mix-grid">
+          <div class="mix-channel-card">
+            <div class="mix-channel-header">
+              <span class="mix-channel-icon">🎛️</span>
+              <div class="mix-channel-info">
+                <span class="mix-channel-name">Synthetic Ambience Bed</span>
+                <span id="drawer-soundwalk-synth-name" class="mix-channel-sub">Wind / Canopy Rustle</span>
+              </div>
+              <span id="drawer-soundwalk-synth-val" class="mix-channel-val">35%</span>
+            </div>
+            <input type="range" id="drawer-soundwalk-synth-slider" class="volume-slider" min="0" max="100" step="1" value="35">
+          </div>
+
+          <div class="mix-channel-card">
+            <div class="mix-channel-header">
+              <span class="mix-channel-icon">🎵</span>
+              <div class="mix-channel-info">
+                <span class="mix-channel-name">Primary Trail Audio Track</span>
+                <span id="drawer-soundwalk-audio-status" class="mix-channel-sub">No Audio File Pinned</span>
+              </div>
+              <span id="drawer-soundwalk-audio-val" class="mix-channel-val">85%</span>
+            </div>
+            <div class="mix-channel-controls-row">
+              <input type="range" id="drawer-soundwalk-audio-slider" class="volume-slider" min="0" max="100" step="1" value="85">
+              <label class="btn-attach-audio-file" title="Attach or Replace Primary Trail Audio Recording">
+                📁 Upload
+                <input type="file" id="drawer-soundwalk-audio-file-input" accept="audio/*" style="display: none;">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Waypoint Audio Deck & Inspector Accordion -->
+        <div class="soundwalk-waypoints-accordion">
+          <div class="accordion-header" id="btn-toggle-waypoints-deck">
+            <div class="accordion-title">
+              <span>📍 Waypoint Stem Deck (<span id="drawer-waypoints-count">0</span> Waypoints)</span>
+              <span class="accordion-hint">Individual audio files & volume crossfading</span>
+            </div>
+            <span class="accordion-chevron" id="waypoints-accordion-chevron">▼</span>
+          </div>
+          <div class="accordion-content" id="drawer-waypoints-list">
+            <!-- Dynamic Waypoint Cards Rendered Here -->
+          </div>
+        </div>
       </div>
 
       <!-- Archival Metadata Grid -->
@@ -495,6 +660,166 @@
       </div>
     </div>
 
+    <!-- Modal: Add New Polygon Geofence Zone -->
+    <div id="add-polygon-modal" class="modal-backdrop hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>⬡ New Polygon Geofence Zone</h3>
+          <button id="btn-close-polygon-modal" class="btn-icon-close">✕</button>
+        </div>
+        <form id="add-polygon-form">
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label>Zone Geometry & Metrics</label>
+              <div class="zone-stats-grid">
+                <span class="stat-pill" id="poly-modal-vertices">Vertices: 0</span>
+                <span class="stat-pill" id="poly-modal-area">Area: ~0 m²</span>
+                <span class="stat-pill" id="poly-modal-perimeter">Perimeter: ~0 m</span>
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label>Habitat / Zone Title</label>
+              <input type="text" id="poly-field-title" class="form-input" placeholder="e.g. Wetlands Bio-Acoustic Habitat" required>
+            </div>
+            <div class="form-group">
+              <label>Recordist / Sound Artist</label>
+              <input type="text" id="poly-field-recordist" class="form-input" placeholder="e.g. Field Ecologist">
+            </div>
+            <div class="form-group">
+              <label>Acoustic Taxonomy</label>
+              <select id="poly-field-taxonomy" class="form-select">
+                <option value="biophony" selected>Biophony (Fauna / Wetland / Canopy)</option>
+                <option value="geophony">Geophony (Water / Wind / Earth)</option>
+                <option value="anthropophony">Anthropophony (Urban / Harbor / Human)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Synthetic Ambience Generator</label>
+              <select id="poly-field-synth" class="form-select">
+                <option value="water" selected>Water / Stream / Wetland</option>
+                <option value="wind">Wind / Rustling Canopy</option>
+                <option value="birdsong">Birdsong / Forest Dawn Chorus</option>
+                <option value="urban">Urban / Ambient Resonance</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Boundary Fade Buffer: <span id="poly-modal-buffer-val" class="range-val">50m</span></label>
+              <div class="range-row">
+                <input type="range" id="poly-field-radius" class="volume-slider" min="10" max="200" step="5" value="50">
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label>Attach Field Recording File (Optional)</label>
+              <div class="file-input-wrapper">
+                <input type="file" id="poly-field-audio-file" accept="audio/*">
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                  Leave empty to synthesize responsive procedural ambience when listener enters zone
+                </div>
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label>Ecological Notes & Archival Description</label>
+              <textarea id="poly-field-description" class="form-textarea" placeholder="Describe this acoustic habitat, species present, or boundary features..."></textarea>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" id="btn-cancel-polygon-modal">Cancel</button>
+            <button type="submit" class="btn-primary">Create Polygon Zone</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Add New Soundwalk Trail -->
+    <div id="add-soundwalk-modal" class="modal-backdrop hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>🚶 New Guided Soundwalk Trail</h3>
+          <button id="btn-close-soundwalk-modal" class="btn-icon-close">✕</button>
+        </div>
+        <form id="add-soundwalk-form">
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label>Trail Geometry & Metrics</label>
+              <div class="zone-stats-grid">
+                <span class="stat-pill" id="soundwalk-modal-waypoints">Waypoints: 0</span>
+                <span class="stat-pill" id="soundwalk-modal-distance">Length: ~0 m</span>
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label>Soundwalk / Trail Title</label>
+              <input type="text" id="soundwalk-field-title" class="form-input" placeholder="e.g. Derbarl Yerrigan Foreshore Soundwalk" required>
+            </div>
+            <div class="form-group">
+              <label>Recordist / Guide</label>
+              <input type="text" id="soundwalk-field-recordist" class="form-input" placeholder="e.g. Acoustic Cartography Collective">
+            </div>
+            <div class="form-group">
+              <label>Acoustic Taxonomy</label>
+              <select id="soundwalk-field-taxonomy" class="form-select">
+                <option value="biophony" selected>Biophony (Wildlife / Birds / Riverbank)</option>
+                <option value="geophony">Geophony (Wind / Water / Elements)</option>
+                <option value="anthropophony">Anthropophony (Urban / Harbor / Heritage)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Synthetic Ambience Generator</label>
+              <select id="soundwalk-field-synth" class="form-select">
+                <option value="wind" selected>Wind / Canopy Rustle</option>
+                <option value="water">Water / Shoreline Lapping</option>
+                <option value="birdsong">Birdsong / Forest Chorus</option>
+                <option value="urban">Urban / City Ambience</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Synth Bed Volume: <span id="soundwalk-modal-synth-vol-val" class="range-val">35%</span></label>
+              <div class="range-row">
+                <input type="range" id="soundwalk-field-synth-vol" class="volume-slider" min="0" max="100" step="1" value="35">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Corridor Buffer Radius: <span id="soundwalk-modal-buffer-val" class="range-val">40m</span></label>
+              <div class="range-row">
+                <input type="range" id="soundwalk-field-radius" class="volume-slider" min="10" max="150" step="5" value="40">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Trail Audio Volume: <span id="soundwalk-modal-audio-vol-val" class="range-val">85%</span></label>
+              <div class="range-row">
+                <input type="range" id="soundwalk-field-audio-vol" class="volume-slider" min="0" max="100" step="1" value="85">
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label>Primary Soundwalk Audio File (Optional Dual-Track Layer)</label>
+              <div class="file-input-wrapper">
+                <input type="file" id="soundwalk-field-audio-file" accept="audio/*">
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                  Can play simultaneously with the continuous Synthetic Ambience Bed
+                </div>
+              </div>
+            </div>
+
+            <!-- Multi-Waypoint Stem Customization Section -->
+            <div class="form-group full-width" id="soundwalk-modal-waypoints-wrapper">
+              <label>📍 Waypoint Stem Audio & Trigger Radii</label>
+              <div class="modal-waypoints-container" id="soundwalk-modal-waypoints-list">
+                <!-- Dynamic Waypoint Inputs Rendered Here -->
+              </div>
+            </div>
+
+            <div class="form-group full-width">
+              <label>Trail Notes & Waypoint Guidance</label>
+              <textarea id="soundwalk-field-description" class="form-textarea" placeholder="Describe this walking journey, sensory landmarks, or trail directions..."></textarea>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" id="btn-cancel-soundwalk-modal">Cancel</button>
+            <button type="submit" class="btn-primary">Create Soundwalk Trail</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Splash Audio Unlock Overlay -->
     <div id="splash-overlay" class="splash-overlay">
       <div class="splash-dialog">
@@ -518,9 +843,9 @@
           <h3>Build Information</h3>
           <button id="btn-close-version" class="btn-icon-close">✕</button>
         </div>
-        <p><strong>Version:</strong> <span id="version-text">v0.5.0</span></p>
-        <p><strong>Stage:</strong> <span id="build-stage">Phase 3: Sound Art & Archival Tooling</span></p>
-        <p><strong>Build Date:</strong> <span id="build-date">2026-09-16</span></p>
+        <p><strong>Version:</strong> <span id="version-text">v0.9.0</span></p>
+        <p><strong>Stage:</strong> <span id="build-stage">Phase 4+: Dual Audio Layering & Multi-Waypoint Soundwalk Mixing</span></p>
+        <p><strong>Build Date:</strong> <span id="build-date">2026-09-20</span></p>
         <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 12px 0;">
         <strong>Active Features:</strong>
         <ul id="build-features" class="feature-list"></ul>
@@ -528,8 +853,8 @@
     </div>
   </div>
 
-  <!-- MapLibre GL JS -->
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <!-- MapLibre GL JS (Local & Offline Bundled) -->
+  <script src="./js/maplibre-gl.js"></script>
 
   <!-- Main ES Module Bootstrap -->
   <script type="module" src="./js/app.js"></script>
