@@ -18,6 +18,7 @@ export class AudioEngine {
     this.masterVolume = 0.85;
     this.mode = 'mock-gps'; // 'location', 'mock-gps', 'static'
     this.activeAuditionId = null; // for static solo audition
+    this.activeAuditionWaypoint = null; // for specific waypoint solo audition
   }
 
   /**
@@ -71,21 +72,33 @@ export class AudioEngine {
   /**
    * Creates an audio source graph data object.
    */
-  createSoundSource(feature, audioBlob = null) {
+  createSoundSource(feature, audioBlob = null, waypointBlobsMap = null) {
     const id = feature.id;
     if (this.soundNodes.has(id)) return this.soundNodes.get(id);
 
-    const props = feature.properties;
+    const props = feature.properties || {};
     const geomType = feature.geometry?.type || 'Point';
     const isPolygon = geomType === 'Polygon' || geomType === 'MultiPolygon';
-    const polygonCoords = isPolygon ? feature.geometry.coordinates : null;
-    const coords = isPolygon
-      ? GeoEngine.getPolygonCentroid(feature.geometry.coordinates)
-      : (feature.geometry?.coordinates || [115.8605, -31.9505]);
+    const isLineString = geomType === 'LineString' || geomType === 'MultiLineString';
+    const polygonCoords = isPolygon ? feature.geometry?.coordinates : null;
+    const lineCoords = isLineString ? feature.geometry?.coordinates : null;
 
-    const radius = props.spatialPlayback?.radiusMeters || (isPolygon ? 50 : 60);
+    let coords;
+    if (isPolygon) {
+      coords = GeoEngine.getPolygonCentroid(feature.geometry?.coordinates);
+    } else if (isLineString) {
+      const vertices = GeoEngine.extractLineVertices(feature.geometry?.coordinates);
+      const midIdx = Math.floor(vertices.length / 2);
+      coords = vertices[midIdx] || vertices[0] || [115.8605, -31.9505];
+    } else {
+      coords = GeoEngine.toCoordPair(feature.geometry?.coordinates) || [115.8605, -31.9505];
+    }
+
+    const radius = props.spatialPlayback?.radiusMeters || (isPolygon ? 50 : isLineString ? 40 : 60);
     const rolloff = props.spatialPlayback?.rolloff || 'exponential';
-    const synthType = props.synthType || (props.audio?.url ? null : (isPolygon ? 'water' : 'birdsong'));
+    const synthType = props.synthType || (props.audio?.url ? null : (isPolygon ? 'water' : isLineString ? 'wind' : 'birdsong'));
+    const synthVolume = props.spatialPlayback?.synthVolume !== undefined ? Number(props.spatialPlayback.synthVolume) : 0.35;
+    const audioVolume = props.spatialPlayback?.audioVolume !== undefined ? Number(props.spatialPlayback.audioVolume) : 0.85;
 
     const channelFormat = props.audio?.channelFormat || props.channelFormat || 'stereo';
     const channels = props.audio?.channels || (channelFormat.includes('ambisonic') ? 4 : 2);
@@ -97,22 +110,32 @@ export class AudioEngine {
       coords,
       isPolygon,
       polygonCoords,
+      isLineString,
+      lineCoords,
       radius,
       rolloff,
       synthType,
+      synthVolume,
+      audioVolume,
       channelFormat,
       channels,
       isAmbisonic,
       audioUrl: props.audio?.url,
       audioBlob: audioBlob,
+      waypointBlobsMap: waypointBlobsMap || new Map(),
       gainNode: null,
+      synthGainNode: null,
+      audioGainNode: null,
       pannerNode: null,
       ambisonicDecoder: null,
       sourceNode: null,
+      synthSourceNodes: [],
       audioElement: null,
+      waypointNodes: new Map(), // wpIndex -> WaypointAudioNode
       isPlaying: false,
       currentDistance: Infinity,
-      currentGain: 0
+      currentGain: 0,
+      activeWaypoint: null
     };
 
     this.soundNodes.set(id, sourceObj);
@@ -157,8 +180,42 @@ export class AudioEngine {
       } else {
         this.attachProceduralAmbisonicAudio(sound);
       }
+    } else if (sound.isLineString) {
+      // Guided Soundwalk Trail Routing: Master corridor gain + Dual Layering (Synth Bed + Trail Audio)
+      sound.gainNode = this.ctx.createGain();
+      sound.gainNode.gain.setValueAtTime(0, this.ctx.currentTime);
+
+      if (this.ctx.createStereoPanner) {
+        sound.pannerNode = this.ctx.createStereoPanner();
+        sound.pannerNode.pan.setValueAtTime(0, this.ctx.currentTime);
+      }
+
+      if (sound.pannerNode) {
+        sound.gainNode.connect(sound.pannerNode);
+        sound.pannerNode.connect(this.masterGain);
+      } else {
+        sound.gainNode.connect(this.masterGain);
+      }
+
+      // 1. Synthetic Ambience Bed Layer
+      sound.synthGainNode = this.ctx.createGain();
+      sound.synthGainNode.gain.setValueAtTime(sound.synthVolume, this.ctx.currentTime);
+      sound.synthGainNode.connect(sound.gainNode);
+      this.attachProceduralAudio(sound, sound.synthGainNode, sound.synthType || 'wind');
+
+      // 2. Primary Trail Audio File Layer (Optional / Simultaneous)
+      sound.audioGainNode = this.ctx.createGain();
+      sound.audioGainNode.gain.setValueAtTime(sound.audioVolume, this.ctx.currentTime);
+      sound.audioGainNode.connect(sound.gainNode);
+
+      if (sound.audioBlob || (sound.audioUrl && sound.audioUrl.startsWith('http'))) {
+        this.attachFileAudioSource(sound, sound.audioGainNode);
+      }
+
+      // 3. Multi-Waypoint Audio Stems / Pointers
+      this.initWaypointAudioSources(sound);
     } else {
-      // Standard Mono / Stereo Spatial Routing
+      // Standard Mono / Stereo Spatial Routing (Point or Polygon)
       sound.gainNode = this.ctx.createGain();
       sound.gainNode.gain.setValueAtTime(0, this.ctx.currentTime);
 
@@ -175,9 +232,9 @@ export class AudioEngine {
       }
 
       if (sound.audioBlob || (sound.audioUrl && sound.audioUrl.startsWith('http'))) {
-        this.attachFileAudioSource(sound);
+        this.attachFileAudioSource(sound, sound.gainNode);
       } else {
-        this.attachProceduralAudio(sound);
+        this.attachProceduralAudio(sound, sound.gainNode, sound.synthType);
       }
     }
 
@@ -185,10 +242,211 @@ export class AudioEngine {
   }
 
   /**
+   * Initializes audio stem routing for individual waypoints along a soundwalk
+   */
+  initWaypointAudioSources(sound) {
+    if (!this.ctx || !sound.isLineString) return;
+
+    this.cleanupWaypointSources(sound);
+    sound.waypointNodes = new Map();
+
+    const waypoints = sound.feature.properties?.spatialPlayback?.waypoints || [];
+    waypoints.forEach((wp, idx) => {
+      const wpIndex = wp.index !== undefined ? wp.index : idx;
+      const wpCoords = GeoEngine.toCoordPair(wp.coords);
+      if (!wpCoords) return;
+
+      const wpRadius = wp.radiusMeters || wp.radius || 30;
+      const wpVolume = wp.volume !== undefined ? Number(wp.volume) : 0.85;
+      const wpSynth = wp.synthType || null;
+      const wpBlob = sound.waypointBlobsMap?.get(wpIndex) || null;
+      const wpUrl = wp.audio?.url || null;
+
+      const wpGainNode = this.ctx.createGain();
+      wpGainNode.gain.setValueAtTime(0, this.ctx.currentTime);
+
+      let wpPanner = null;
+      if (this.ctx.createStereoPanner) {
+        wpPanner = this.ctx.createStereoPanner();
+        wpPanner.pan.setValueAtTime(0, this.ctx.currentTime);
+        wpGainNode.connect(wpPanner);
+        wpPanner.connect(this.masterGain);
+      } else {
+        wpGainNode.connect(this.masterGain);
+      }
+
+      const wpNode = {
+        index: wpIndex,
+        name: wp.name || `Waypoint ${wpIndex + 1}`,
+        coords: wpCoords,
+        radius: wpRadius,
+        volume: wpVolume,
+        synthType: wpSynth,
+        audioBlob: wpBlob,
+        audioUrl: wpUrl,
+        gainNode: wpGainNode,
+        pannerNode: wpPanner,
+        audioElement: null,
+        sourceNode: null,
+        synthSourceNodes: [],
+        currentDistance: Infinity,
+        currentGain: 0
+      };
+
+      if (wpBlob || (wpUrl && wpUrl.startsWith('http'))) {
+        this.attachWaypointFileAudio(wpNode);
+      } else if (wpSynth) {
+        this.attachWaypointProceduralAudio(wpNode);
+      }
+
+      sound.waypointNodes.set(wpIndex, wpNode);
+    });
+  }
+
+  /**
+   * Attach audio file stream to a specific waypoint node
+   */
+  attachWaypointFileAudio(wpNode) {
+    try {
+      if (wpNode.audioElement) {
+        wpNode.audioElement.pause();
+        wpNode.audioElement.src = '';
+      }
+
+      const audioEl = new Audio();
+      audioEl.crossOrigin = 'anonymous';
+      audioEl.loop = true;
+
+      if (wpNode.audioBlob) {
+        audioEl.src = URL.createObjectURL(wpNode.audioBlob);
+      } else if (wpNode.audioUrl) {
+        audioEl.src = wpNode.audioUrl;
+      }
+
+      const mediaSource = this.ctx.createMediaElementSource(audioEl);
+      mediaSource.connect(wpNode.gainNode);
+
+      audioEl.play().catch(() => {});
+
+      wpNode.audioElement = audioEl;
+      wpNode.sourceNode = mediaSource;
+    } catch (e) {
+      console.warn(`Could not attach audio to waypoint ${wpNode.index}:`, e);
+    }
+  }
+
+  /**
+   * Attach procedural audio generator to a specific waypoint node
+   */
+  attachWaypointProceduralAudio(wpNode) {
+    if (!wpNode.synthType) return;
+    const ctx = this.ctx;
+    const type = wpNode.synthType;
+
+    // Clean up existing generators
+    if (wpNode.synthSourceNodes) {
+      wpNode.synthSourceNodes.forEach(node => {
+        try { node.stop ? node.stop() : node.disconnect(); } catch (e) {}
+      });
+      wpNode.synthSourceNodes = [];
+    }
+
+    if (type === 'birdsong') {
+      const osc = ctx.createOscillator();
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(2600 + (wpNode.index * 150), ctx.currentTime);
+
+      lfo.type = 'triangle';
+      lfo.frequency.setValueAtTime(4.2 + (wpNode.index * 0.3), ctx.currentTime);
+      lfoGain.gain.setValueAtTime(550, ctx.currentTime);
+
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(2800, ctx.currentTime);
+      filter.Q.setValueAtTime(3.5, ctx.currentTime);
+
+      osc.connect(filter);
+      filter.connect(wpNode.gainNode);
+
+      osc.start();
+      lfo.start();
+      wpNode.synthSourceNodes.push(osc, lfo, lfoGain, filter);
+    } else if (type === 'water') {
+      const bufferSize = ctx.sampleRate * 2;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        data[i] = (b0 + b1 + b2) * 0.14;
+      }
+
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = buffer;
+      noiseSource.loop = true;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(480, ctx.currentTime);
+
+      noiseSource.connect(filter);
+      filter.connect(wpNode.gainNode);
+
+      noiseSource.start();
+      wpNode.synthSourceNodes.push(noiseSource, filter);
+    } else {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320, ctx.currentTime);
+      osc.connect(wpNode.gainNode);
+      osc.start();
+      wpNode.synthSourceNodes.push(osc);
+    }
+  }
+
+  /**
+   * Cleans up all audio elements, sources and oscillators for waypoint nodes
+   */
+  cleanupWaypointSources(sound) {
+    if (!sound.waypointNodes) return;
+    for (const [, wpNode] of sound.waypointNodes) {
+      if (wpNode.audioElement) {
+        wpNode.audioElement.pause();
+        wpNode.audioElement.src = '';
+      }
+      if (wpNode.sourceNode) {
+        try { wpNode.sourceNode.disconnect(); } catch (e) {}
+      }
+      if (wpNode.synthSourceNodes) {
+        wpNode.synthSourceNodes.forEach(node => {
+          try { node.stop ? node.stop() : node.disconnect(); } catch (e) {}
+        });
+      }
+      if (wpNode.gainNode) {
+        wpNode.gainNode.disconnect();
+      }
+      if (wpNode.pannerNode) {
+        wpNode.pannerNode.disconnect();
+      }
+    }
+    sound.waypointNodes.clear();
+  }
+
+  /**
    * Attach an HTMLAudioElement streaming a Blob or URL (Stereo / Mono)
    */
-  attachFileAudioSource(sound) {
+  attachFileAudioSource(sound, targetGainNode = null) {
     try {
+      const destGain = targetGainNode || sound.gainNode;
       const audioEl = new Audio();
       audioEl.crossOrigin = 'anonymous';
       audioEl.loop = true;
@@ -200,21 +458,26 @@ export class AudioEngine {
       }
 
       audioEl.onerror = () => {
-        // Silently fallback to procedural audio if audio file failed to load
-        this.attachProceduralAudio(sound);
+        if (!sound.isLineString) {
+          this.attachProceduralAudio(sound, destGain);
+        }
       };
 
       const mediaSource = this.ctx.createMediaElementSource(audioEl);
-      mediaSource.connect(sound.gainNode);
+      mediaSource.connect(destGain);
 
       audioEl.play().catch(() => {
-        this.attachProceduralAudio(sound);
+        if (!sound.isLineString) {
+          this.attachProceduralAudio(sound, destGain);
+        }
       });
 
       sound.audioElement = audioEl;
       sound.sourceNode = mediaSource;
     } catch (e) {
-      this.attachProceduralAudio(sound);
+      if (!sound.isLineString) {
+        this.attachProceduralAudio(sound, targetGainNode || sound.gainNode);
+      }
     }
   }
 
@@ -267,9 +530,12 @@ export class AudioEngine {
   /**
    * Procedural sound generation based on ecological taxonomy (Mono/Stereo)
    */
-  attachProceduralAudio(sound) {
-    const type = sound.synthType || 'birdsong';
+  attachProceduralAudio(sound, targetGainNode = null, explicitType = null) {
+    const type = explicitType || sound.synthType || 'birdsong';
     const ctx = this.ctx;
+    const destGain = targetGainNode || sound.gainNode;
+
+    if (!destGain) return;
 
     if (type === 'birdsong') {
       const osc = ctx.createOscillator();
@@ -292,11 +558,11 @@ export class AudioEngine {
       filter.Q.setValueAtTime(3, ctx.currentTime);
 
       osc.connect(filter);
-      filter.connect(sound.gainNode);
+      filter.connect(destGain);
 
       osc.start();
       lfo.start();
-      sound.sourceNode = osc;
+      if (!sound.sourceNode) sound.sourceNode = osc;
     } else if (type === 'water') {
       const bufferSize = ctx.sampleRate * 2;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -327,11 +593,11 @@ export class AudioEngine {
       lfoGain.connect(filter.frequency);
 
       noiseSource.connect(filter);
-      filter.connect(sound.gainNode);
+      filter.connect(destGain);
 
       noiseSource.start();
       lfo.start();
-      sound.sourceNode = noiseSource;
+      if (!sound.sourceNode) sound.sourceNode = noiseSource;
     } else if (type === 'wind') {
       const bufferSize = ctx.sampleRate * 2;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -358,11 +624,11 @@ export class AudioEngine {
       lfoGain.connect(filter.frequency);
 
       noiseSource.connect(filter);
-      filter.connect(sound.gainNode);
+      filter.connect(destGain);
 
       noiseSource.start();
       lfo.start();
-      sound.sourceNode = noiseSource;
+      if (!sound.sourceNode) sound.sourceNode = noiseSource;
     } else {
       const osc1 = ctx.createOscillator();
       const osc2 = ctx.createOscillator();
@@ -381,11 +647,11 @@ export class AudioEngine {
       osc1.connect(filter);
       osc2.connect(filter);
       filter.connect(subGain);
-      subGain.connect(sound.gainNode);
+      subGain.connect(destGain);
 
       osc1.start();
       osc2.start();
-      sound.sourceNode = osc1;
+      if (!sound.sourceNode) sound.sourceNode = osc1;
     }
   }
 
@@ -474,6 +740,12 @@ export class AudioEngine {
     if (sound.sourceNode && sound.sourceNode.stop) {
       try { sound.sourceNode.stop(); } catch (e) {}
     }
+    if (sound.synthGainNode) {
+      sound.synthGainNode.disconnect();
+    }
+    if (sound.audioGainNode) {
+      sound.audioGainNode.disconnect();
+    }
     if (sound.gainNode) {
       sound.gainNode.disconnect();
     }
@@ -484,12 +756,96 @@ export class AudioEngine {
       sound.ambisonicDecoder.disconnect();
     }
 
+    this.cleanupWaypointSources(sound);
+
     if (this.activeAuditionId === id) {
       this.activeAuditionId = null;
+      this.activeAuditionWaypoint = null;
     }
 
     this.soundNodes.delete(id);
     this.updateProximityMix();
+  }
+
+  /**
+   * Sets synthetic ambience bed volume for a soundwalk
+   */
+  setSoundSynthVolume(id, vol) {
+    const sound = this.soundNodes.get(id);
+    if (!sound) return;
+    sound.synthVolume = Math.max(0, Math.min(1, vol));
+    if (sound.synthGainNode && this.ctx) {
+      sound.synthGainNode.gain.setTargetAtTime(sound.synthVolume, this.ctx.currentTime, 0.05);
+    }
+    if (sound.feature.properties.spatialPlayback) {
+      sound.feature.properties.spatialPlayback.synthVolume = sound.synthVolume;
+    }
+  }
+
+  /**
+   * Sets primary audio track volume for a soundwalk
+   */
+  setSoundAudioVolume(id, vol) {
+    const sound = this.soundNodes.get(id);
+    if (!sound) return;
+    sound.audioVolume = Math.max(0, Math.min(1, vol));
+    if (sound.audioGainNode && this.ctx) {
+      sound.audioGainNode.gain.setTargetAtTime(sound.audioVolume, this.ctx.currentTime, 0.05);
+    }
+    if (sound.feature.properties.spatialPlayback) {
+      sound.feature.properties.spatialPlayback.audioVolume = sound.audioVolume;
+    }
+  }
+
+  /**
+   * Sets volume for a specific soundwalk waypoint
+   */
+  setWaypointVolume(id, wpIndex, vol) {
+    const sound = this.soundNodes.get(id);
+    if (!sound || !sound.waypointNodes) return;
+    const wpNode = sound.waypointNodes.get(wpIndex);
+    if (wpNode) {
+      wpNode.volume = Math.max(0, Math.min(1, vol));
+    }
+    const waypoints = sound.feature.properties?.spatialPlayback?.waypoints;
+    if (waypoints && waypoints[wpIndex]) {
+      waypoints[wpIndex].volume = Math.max(0, Math.min(1, vol));
+    }
+    this.updateProximityMix();
+  }
+
+  /**
+   * Sets trigger radius for a specific soundwalk waypoint
+   */
+  setWaypointRadius(id, wpIndex, radius) {
+    const sound = this.soundNodes.get(id);
+    if (!sound || !sound.waypointNodes) return;
+    const wpNode = sound.waypointNodes.get(wpIndex);
+    if (wpNode) {
+      wpNode.radius = Math.max(5, Math.min(200, radius));
+    }
+    const waypoints = sound.feature.properties?.spatialPlayback?.waypoints;
+    if (waypoints && waypoints[wpIndex]) {
+      waypoints[wpIndex].radiusMeters = Math.max(5, Math.min(200, radius));
+    }
+    this.updateProximityMix();
+  }
+
+  /**
+   * Attaches/replaces an audio blob on a specific soundwalk waypoint
+   */
+  setWaypointAudio(id, wpIndex, audioBlob) {
+    const sound = this.soundNodes.get(id);
+    if (!sound || !sound.waypointNodes) return;
+    const wpNode = sound.waypointNodes.get(wpIndex);
+    if (wpNode) {
+      wpNode.audioBlob = audioBlob;
+      wpNode.synthType = null;
+      if (sound.waypointBlobsMap) {
+        sound.waypointBlobsMap.set(wpIndex, audioBlob);
+      }
+      this.attachWaypointFileAudio(wpNode);
+    }
   }
 
   /**
@@ -498,9 +854,12 @@ export class AudioEngine {
   updateSoundCoordinates(id, coords) {
     const sound = this.soundNodes.get(id);
     if (sound) {
-      sound.coords = coords;
-      if (sound.feature && sound.feature.geometry) {
-        sound.feature.geometry.coordinates = coords;
+      const validCoords = GeoEngine.toCoordPair(coords);
+      if (validCoords) {
+        sound.coords = validCoords;
+        if (sound.feature && sound.feature.geometry && sound.feature.geometry.type === 'Point') {
+          sound.feature.geometry.coordinates = validCoords;
+        }
       }
       this.updateProximityMix();
     }
@@ -509,51 +868,26 @@ export class AudioEngine {
   /**
    * Updates an entire sound feature's properties and reconfigures routing if necessary
    */
-  updateSoundSource(feature, newAudioBlob = null) {
+  updateSoundSource(feature, newAudioBlob = null, waypointBlobsMap = null) {
     const id = feature.id;
     const existing = this.soundNodes.get(id);
-    if (!existing) {
-      return this.createSoundSource(feature, newAudioBlob);
-    }
-
-    const props = feature.properties;
-    const coords = feature.geometry.coordinates;
-    const radius = props.spatialPlayback?.radiusMeters || 60;
-    const rolloff = props.spatialPlayback?.rolloff || 'exponential';
-    const channelFormat = props.audio?.channelFormat || props.channelFormat || 'stereo';
-    const channels = props.audio?.channels || (channelFormat.includes('ambisonic') ? 4 : 2);
-    const isAmbisonic = channelFormat.includes('ambisonic') || channels === 4;
-    const synthType = props.synthType || (props.audio?.url ? null : 'birdsong');
-
-    const formatChanged = existing.isAmbisonic !== isAmbisonic || existing.channelFormat !== channelFormat;
-    const audioFileChanged = newAudioBlob !== null || (props.audio?.url && props.audio.url !== existing.audioUrl);
-
-    existing.feature = feature;
-    existing.coords = coords;
-    existing.radius = radius;
-    existing.rolloff = rolloff;
-    existing.synthType = synthType;
-    existing.channelFormat = channelFormat;
-    existing.channels = channels;
-    existing.isAmbisonic = isAmbisonic;
-    if (props.audio?.url) existing.audioUrl = props.audio.url;
-    if (newAudioBlob) existing.audioBlob = newAudioBlob;
-
-    if (formatChanged || audioFileChanged) {
-      // Re-initialize audio graph if spatial format or audio asset changed
-      const currentBlob = newAudioBlob || existing.audioBlob;
+    const currentBlob = newAudioBlob || existing?.audioBlob;
+    const currentWpBlobs = waypointBlobsMap || existing?.waypointBlobsMap;
+    if (existing) {
       this.removeSoundSource(id);
-      this.createSoundSource(feature, currentBlob);
-    } else {
-      this.updateProximityMix();
     }
+    this.createSoundSource(feature, currentBlob, currentWpBlobs);
+    this.updateProximityMix();
   }
 
   /**
    * Updates listener position and recalculates proximity attenuation and panning.
    */
   updateListenerPosition(coords, heading = null) {
-    this.listenerPosition = coords;
+    const validCoords = GeoEngine.toCoordPair(coords);
+    if (validCoords) {
+      this.listenerPosition = validCoords;
+    }
     if (heading !== null && !isNaN(heading)) {
       this.listenerHeading = heading;
     }
@@ -583,13 +917,36 @@ export class AudioEngine {
       // In Static Solo Audition mode
       if (this.mode === 'static' && this.activeAuditionId) {
         if (sound.id === this.activeAuditionId) {
-          sound.currentGain = 1.0;
-          if (sound.isAmbisonic && sound.ambisonicDecoder) {
-            sound.ambisonicDecoder.setGain(1.0);
-            sound.ambisonicDecoder.setRotation(0);
-          } else if (sound.gainNode) {
-            sound.gainNode.gain.setTargetAtTime(1.0, now, timeConstant);
-            if (sound.pannerNode) sound.pannerNode.pan.setTargetAtTime(0, now, timeConstant);
+          if (this.activeAuditionWaypoint !== null && this.activeAuditionWaypoint !== undefined && sound.isLineString) {
+            // Solo auditioning a specific waypoint along the soundwalk
+            sound.currentGain = 0;
+            if (sound.gainNode) sound.gainNode.gain.setTargetAtTime(0, now, timeConstant);
+            for (const [wpIdx, wpNode] of sound.waypointNodes) {
+              if (wpIdx === this.activeAuditionWaypoint) {
+                wpNode.currentGain = 1.0;
+                wpNode.gainNode.gain.setTargetAtTime(1.0, now, timeConstant);
+                if (wpNode.pannerNode) wpNode.pannerNode.pan.setTargetAtTime(0, now, timeConstant);
+              } else {
+                wpNode.currentGain = 0;
+                wpNode.gainNode.gain.setTargetAtTime(0, now, timeConstant);
+              }
+            }
+          } else {
+            // Solo auditioning the entire sound / soundwalk
+            sound.currentGain = 1.0;
+            if (sound.isAmbisonic && sound.ambisonicDecoder) {
+              sound.ambisonicDecoder.setGain(1.0);
+              sound.ambisonicDecoder.setRotation(0);
+            } else if (sound.gainNode) {
+              sound.gainNode.gain.setTargetAtTime(1.0, now, timeConstant);
+              if (sound.pannerNode) sound.pannerNode.pan.setTargetAtTime(0, now, timeConstant);
+            }
+            if (sound.waypointNodes) {
+              for (const [, wpNode] of sound.waypointNodes) {
+                wpNode.currentGain = 0;
+                wpNode.gainNode.gain.setTargetAtTime(0, now, timeConstant);
+              }
+            }
           }
         } else {
           sound.currentGain = 0;
@@ -598,11 +955,17 @@ export class AudioEngine {
           } else if (sound.gainNode) {
             sound.gainNode.gain.setTargetAtTime(0, now, timeConstant);
           }
+          if (sound.waypointNodes) {
+            for (const [, wpNode] of sound.waypointNodes) {
+              wpNode.currentGain = 0;
+              wpNode.gainNode.gain.setTargetAtTime(0, now, timeConstant);
+            }
+          }
         }
         continue;
       }
 
-      // Proximity Distance & Gain Calculation (Point Radius vs Polygon Habitat)
+      // Proximity Distance & Gain Calculation (Point Radius vs Polygon Habitat vs LineString Soundwalk)
       let dist = 0;
       let gain = 0;
       let refCoords = sound.coords;
@@ -623,6 +986,45 @@ export class AudioEngine {
           } else {
             gain = 0;
             sound.isAudible = false;
+          }
+        }
+      } else if (sound.isLineString && sound.lineCoords) {
+        dist = GeoEngine.distanceToLineString(this.listenerPosition, sound.lineCoords);
+        const closest = GeoEngine.findClosestWaypoint(this.listenerPosition, sound.lineCoords);
+        refCoords = closest.coord;
+        sound.activeWaypoint = closest;
+
+        const pathBuffer = sound.radius || 40;
+        if (dist < pathBuffer) {
+          const norm = 1 - dist / pathBuffer;
+          gain = sound.rolloff === 'exponential' ? Math.pow(norm, 1.5) : norm;
+          sound.isAudible = true;
+        } else {
+          gain = 0;
+          sound.isAudible = false;
+        }
+
+        // Calculate proximity for each waypoint stem node along the soundwalk
+        if (sound.waypointNodes) {
+          for (const [, wpNode] of sound.waypointNodes) {
+            const wpDist = GeoEngine.getDistance(this.listenerPosition, wpNode.coords);
+            wpNode.currentDistance = wpDist;
+            if (wpDist < wpNode.radius) {
+              const wpNorm = 1 - (wpDist / wpNode.radius);
+              const wpGainVal = Math.pow(wpNorm, 1.4) * (wpNode.volume !== undefined ? wpNode.volume : 0.85);
+              wpNode.gainNode.gain.setTargetAtTime(wpGainVal, now, timeConstant);
+              wpNode.currentGain = wpGainVal;
+
+              if (wpNode.pannerNode) {
+                const bearing = GeoEngine.getBearing(this.listenerPosition, wpNode.coords);
+                const relAngle = ((bearing - this.listenerHeading + 540) % 360) - 180;
+                const panVal = Math.sin((relAngle * Math.PI) / 180);
+                wpNode.pannerNode.pan.setTargetAtTime(panVal, now, timeConstant);
+              }
+            } else {
+              wpNode.gainNode.gain.setTargetAtTime(0, now, timeConstant);
+              wpNode.currentGain = 0;
+            }
           }
         }
       } else {
@@ -656,7 +1058,7 @@ export class AudioEngine {
         sound.gainNode.gain.setTargetAtTime(gain, now, timeConstant);
 
         // Standard Stereo Panning based on angle between listener and source
-        const maxPanDist = sound.isPolygon ? 150 : (sound.radius * 1.5);
+        const maxPanDist = sound.isPolygon || sound.isLineString ? 150 : (sound.radius * 1.5);
         if (sound.pannerNode && dist < maxPanDist) {
           const bearing = GeoEngine.getBearing(this.listenerPosition, refCoords);
           const relAngle = ((bearing - this.listenerHeading + 540) % 360) - 180;
@@ -668,10 +1070,11 @@ export class AudioEngine {
   }
 
   /**
-   * Set solo pin audition for Static Mode
+   * Set solo pin audition for Static Mode, optionally targeting a specific waypoint
    */
-  setSoloAudition(soundId) {
+  setSoloAudition(soundId, wpIndex = null) {
     this.activeAuditionId = soundId;
+    this.activeAuditionWaypoint = wpIndex;
     this.updateProximityMix();
   }
 
@@ -691,6 +1094,23 @@ export class AudioEngine {
           channelFormat: sound.channelFormat,
           isAmbisonic: sound.isAmbisonic
         });
+      }
+
+      // Also include active waypoints if audible
+      if (sound.waypointNodes) {
+        for (const [wpIdx, wpNode] of sound.waypointNodes) {
+          if (wpNode.currentGain > 0.01) {
+            list.push({
+              id: `${sound.id}_wp_${wpIdx}`,
+              title: `${sound.feature.properties.title} - ${wpNode.name}`,
+              distance: Math.round(wpNode.currentDistance),
+              gain: Math.round(wpNode.currentGain * 100),
+              taxonomy: sound.feature.properties.archival?.taxonomies?.[0] || 'sound',
+              channelFormat: 'stereo',
+              isAmbisonic: false
+            });
+          }
+        }
       }
     }
     return list.sort((a, b) => b.gain - a.gain);

@@ -295,6 +295,251 @@ export class UIController {
       });
     }
 
+    // "Draw Polygon Zone" Quick Header Button & Menu Button
+    const quickDrawPolyBtn = document.getElementById('btn-quick-draw-polygon');
+    const drawPolyBtn = document.getElementById('btn-draw-polygon');
+    if (quickDrawPolyBtn) {
+      quickDrawPolyBtn.addEventListener('click', () => {
+        closeMenu();
+        this.startPolygonDrawMode();
+      });
+    }
+    if (drawPolyBtn) {
+      drawPolyBtn.addEventListener('click', () => {
+        closeMenu();
+        this.startPolygonDrawMode();
+      });
+    }
+
+    // Polygon Draw Banner Actions: Finish, Undo, Cancel
+    const finishPolyBtn = document.getElementById('btn-finish-polygon');
+    if (finishPolyBtn) {
+      finishPolyBtn.addEventListener('click', () => {
+        this.map.finishDrawingPolygon();
+      });
+    }
+    const undoPolyBtn = document.getElementById('btn-undo-polygon');
+    if (undoPolyBtn) {
+      undoPolyBtn.addEventListener('click', () => {
+        this.map.undoPolygonDrawVertex();
+      });
+    }
+    const cancelPolyBtn = document.getElementById('btn-cancel-polygon');
+    if (cancelPolyBtn) {
+      cancelPolyBtn.addEventListener('click', () => {
+        this.map.cancelDrawingPolygon();
+      });
+    }
+
+    // Polygon Reshaping Banner Actions: Save & Cancel
+    const savePolyEditBtn = document.getElementById('btn-save-polygon-edit');
+    if (savePolyEditBtn) {
+      savePolyEditBtn.addEventListener('click', () => {
+        this.map.saveEditingPolygon();
+      });
+    }
+    const cancelPolyEditBtn = document.getElementById('btn-cancel-polygon-edit');
+    if (cancelPolyEditBtn) {
+      cancelPolyEditBtn.addEventListener('click', () => {
+        this.map.cancelEditingPolygon();
+      });
+    }
+
+    // Drawer "Edit Boundary" Button
+    const editPolyShapeBtn = document.getElementById('btn-edit-polygon-shape');
+    if (editPolyShapeBtn) {
+      editPolyShapeBtn.addEventListener('click', () => {
+        if (!this.selectedFeature) return;
+        this.startPolygonEditMode(this.selectedFeature);
+      });
+    }
+
+    // Polygon Creation Modal Buffer Slider
+    const polyBufferSlider = document.getElementById('poly-field-radius');
+    if (polyBufferSlider) {
+      polyBufferSlider.addEventListener('input', (e) => {
+        const valEl = document.getElementById('poly-modal-buffer-val');
+        if (valEl) valEl.innerText = `${e.target.value}m`;
+      });
+    }
+
+    // Polygon Creation Modal Close / Cancel
+    const closePolyModalBtn = document.getElementById('btn-close-polygon-modal');
+    const cancelPolyModalBtn = document.getElementById('btn-cancel-polygon-modal');
+    if (closePolyModalBtn) closePolyModalBtn.addEventListener('click', () => this.closeAddPolygonModal());
+    if (cancelPolyModalBtn) cancelPolyModalBtn.addEventListener('click', () => this.closeAddPolygonModal());
+
+    // Polygon Creation Form Submission
+    const addPolyForm = document.getElementById('add-polygon-form');
+    if (addPolyForm) {
+      addPolyForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await this.handleSaveNewPolygonZone();
+      });
+    }
+
+    // "Draw Soundwalk Path" Quick Header Button & Menu Button
+    const quickDrawSoundwalkBtn = document.getElementById('btn-quick-draw-soundwalk');
+    const drawSoundwalkBtn = document.getElementById('btn-draw-soundwalk');
+    if (quickDrawSoundwalkBtn) {
+      quickDrawSoundwalkBtn.addEventListener('click', () => {
+        closeMenu();
+        this.startSoundwalkDrawMode();
+      });
+    }
+    if (drawSoundwalkBtn) {
+      drawSoundwalkBtn.addEventListener('click', () => {
+        closeMenu();
+        this.startSoundwalkDrawMode();
+      });
+    }
+
+    // Soundwalk Draw Banner Actions: Finish, Undo, Cancel
+    const finishSoundwalkBtn = document.getElementById('btn-finish-soundwalk-draw');
+    if (finishSoundwalkBtn) {
+      finishSoundwalkBtn.addEventListener('click', () => {
+        this.map.finishDrawingSoundwalk();
+      });
+    }
+    const undoSoundwalkBtn = document.getElementById('btn-undo-soundwalk-draw');
+    if (undoSoundwalkBtn) {
+      undoSoundwalkBtn.addEventListener('click', () => {
+        this.map.undoSoundwalkDrawVertex();
+      });
+    }
+    const cancelSoundwalkBtn = document.getElementById('btn-cancel-soundwalk-draw');
+    if (cancelSoundwalkBtn) {
+      cancelSoundwalkBtn.addEventListener('click', () => {
+        this.map.cancelDrawingSoundwalk();
+      });
+    }
+
+    // Soundwalk Reshaping Banner Actions: Save & Cancel
+    const saveSoundwalkEditBtn = document.getElementById('btn-save-soundwalk-edit');
+    if (saveSoundwalkEditBtn) {
+      saveSoundwalkEditBtn.addEventListener('click', () => {
+        this.map.saveEditingSoundwalk();
+      });
+    }
+    const cancelSoundwalkEditBtn = document.getElementById('btn-cancel-soundwalk-edit');
+    if (cancelSoundwalkEditBtn) {
+      cancelSoundwalkEditBtn.addEventListener('click', () => {
+        this.map.cancelEditingSoundwalk();
+      });
+    }
+
+    // Drawer "Edit Trail" Button
+    const editSoundwalkShapeBtn = document.getElementById('btn-edit-soundwalk-shape');
+    if (editSoundwalkShapeBtn) {
+      editSoundwalkShapeBtn.addEventListener('click', () => {
+        if (!this.selectedFeature) return;
+        this.startSoundwalkEditMode(this.selectedFeature);
+      });
+    }
+
+    // Soundwalk Creation Modal Sliders
+    const soundwalkBufferSlider = document.getElementById('soundwalk-field-radius');
+    if (soundwalkBufferSlider) {
+      soundwalkBufferSlider.addEventListener('input', (e) => {
+        const valEl = document.getElementById('soundwalk-modal-buffer-val');
+        if (valEl) valEl.innerText = `${e.target.value}m`;
+      });
+    }
+
+    const soundwalkSynthVolSlider = document.getElementById('soundwalk-field-synth-vol');
+    if (soundwalkSynthVolSlider) {
+      soundwalkSynthVolSlider.addEventListener('input', (e) => {
+        const valEl = document.getElementById('soundwalk-modal-synth-vol-val');
+        if (valEl) valEl.innerText = `${e.target.value}%`;
+      });
+    }
+
+    const soundwalkAudioVolSlider = document.getElementById('soundwalk-field-audio-vol');
+    if (soundwalkAudioVolSlider) {
+      soundwalkAudioVolSlider.addEventListener('input', (e) => {
+        const valEl = document.getElementById('soundwalk-modal-audio-vol-val');
+        if (valEl) valEl.innerText = `${e.target.value}%`;
+      });
+    }
+
+    // Playback Drawer Soundwalk Mixer Controls
+    const drawerSynthSlider = document.getElementById('drawer-soundwalk-synth-slider');
+    if (drawerSynthSlider) {
+      drawerSynthSlider.addEventListener('input', (e) => {
+        if (!this.selectedFeature) return;
+        const val = parseInt(e.target.value, 10);
+        const valEl = document.getElementById('drawer-soundwalk-synth-val');
+        if (valEl) valEl.innerText = `${val}%`;
+        this.audio.setSoundSynthVolume(this.selectedFeature.id, val / 100);
+      });
+      drawerSynthSlider.addEventListener('change', async () => {
+        if (this.selectedFeature) {
+          await this.storage.saveSound(this.selectedFeature);
+        }
+      });
+    }
+
+    const drawerAudioSlider = document.getElementById('drawer-soundwalk-audio-slider');
+    if (drawerAudioSlider) {
+      drawerAudioSlider.addEventListener('input', (e) => {
+        if (!this.selectedFeature) return;
+        const val = parseInt(e.target.value, 10);
+        const valEl = document.getElementById('drawer-soundwalk-audio-val');
+        if (valEl) valEl.innerText = `${val}%`;
+        this.audio.setSoundAudioVolume(this.selectedFeature.id, val / 100);
+      });
+      drawerAudioSlider.addEventListener('change', async () => {
+        if (this.selectedFeature) {
+          await this.storage.saveSound(this.selectedFeature);
+        }
+      });
+    }
+
+    const drawerAudioFileInput = document.getElementById('drawer-soundwalk-audio-file-input');
+    if (drawerAudioFileInput) {
+      drawerAudioFileInput.addEventListener('change', async (e) => {
+        if (!this.selectedFeature) return;
+        const file = e.target.files[0];
+        if (file) {
+          await this.storage.saveSound(this.selectedFeature, file);
+          this.audio.updateSoundSource(this.selectedFeature, file);
+          const audioStatusEl = document.getElementById('drawer-soundwalk-audio-status');
+          if (audioStatusEl) audioStatusEl.innerText = '🎵 Master Trail Audio Active';
+          e.target.value = '';
+        }
+      });
+    }
+
+    // Waypoints Stem Deck Accordion Toggle
+    const toggleWaypointsDeckBtn = document.getElementById('btn-toggle-waypoints-deck');
+    if (toggleWaypointsDeckBtn) {
+      toggleWaypointsDeckBtn.addEventListener('click', () => {
+        const listEl = document.getElementById('drawer-waypoints-list');
+        const chevronEl = document.getElementById('waypoints-accordion-chevron');
+        if (listEl) {
+          listEl.classList.toggle('collapsed');
+          if (chevronEl) {
+            chevronEl.style.transform = listEl.classList.contains('collapsed') ? 'rotate(-90deg)' : 'rotate(0deg)';
+          }
+        }
+      });
+    }
+
+    // Soundwalk Creation Modal Close / Cancel
+    const closeSoundwalkModalBtn = document.getElementById('btn-close-soundwalk-modal');
+    const cancelSoundwalkModalBtn = document.getElementById('btn-cancel-soundwalk-modal');
+    if (closeSoundwalkModalBtn) closeSoundwalkModalBtn.addEventListener('click', () => this.closeAddSoundwalkModal());
+    if (cancelSoundwalkModalBtn) cancelSoundwalkModalBtn.addEventListener('click', () => this.closeAddSoundwalkModal());
+
+    // Soundwalk Creation Form Submission
+    const addSoundwalkForm = document.getElementById('add-soundwalk-form');
+    if (addSoundwalkForm) {
+      addSoundwalkForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await this.handleSaveNewSoundwalk();
+      });
+    }
+
     // Banner Cancel Drop Button
     const cancelDropBtn = document.getElementById('btn-cancel-drop');
     if (cancelDropBtn) {
@@ -376,31 +621,40 @@ export class UIController {
       });
     }
 
-    // Import GeoJSON File Picker
+    // Export OACP Standalone Archival Package Button
+    const exportOacpBtn = document.getElementById('btn-export-oacp');
+    if (exportOacpBtn) {
+      exportOacpBtn.addEventListener('click', async () => {
+        try {
+          const currentFeatures = (this.map && this.map.features && this.map.features.length > 0)
+            ? this.map.features
+            : await this.storage.getAllFeatures();
+          await this.storage.exportOACPBundle(currentFeatures);
+          closeMenu();
+        } catch (err) {
+          console.error('Failed to export OACP Package:', err);
+          alert('Export failed: ' + err.message);
+        }
+      });
+    }
+
+    // Import GeoJSON / OACP File Picker
     const importInput = document.getElementById('input-import-geojson');
     if (importInput) {
       importInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        try {
-          const text = await file.text();
-          const geoData = JSON.parse(text);
-          if (geoData.features && Array.isArray(geoData.features)) {
-            for (const feat of geoData.features) {
-              await this.storage.saveSound(feat);
-              this.audio.createSoundSource(feat);
-              this.map.addSoundFeature(feat);
-            }
-            this.updateHUD();
-            alert(`Successfully imported ${geoData.features.length} soundscapes!`);
-            closeMenu();
-          }
-        } catch (err) {
-          alert('Error importing GeoJSON: ' + err.message);
-        }
+        await this.handleImportFile(file);
+        closeMenu();
         e.target.value = '';
       });
     }
+
+    // Setup Global Viewport Drag & Drop Ingestion
+    this.setupViewportDragAndDrop();
+
+    // Setup Online / Offline Network Status Monitoring
+    this.initNetworkStatus();
 
     // Diagnostic / Version Modal Toggle (Top Badge & Menu Footer)
     const versionBadge = document.getElementById('version-badge');
@@ -423,9 +677,516 @@ export class UIController {
     }
   }
 
+  /**
+   * Universal file import handler (GeoJSON, OACP Bundle with base64 audio, or raw audio files)
+   */
+  async handleImportFile(file) {
+    if (!file) return;
+    try {
+      if (file.name.endsWith('.geojson') || file.name.endsWith('.json') || file.type.includes('json')) {
+        const text = await file.text();
+        const geoData = JSON.parse(text);
+        if (geoData.features && Array.isArray(geoData.features)) {
+          for (const feat of geoData.features) {
+            let audioBlob = null;
+            if (feat.properties?.audio?.embeddedBinaryBase64) {
+              audioBlob = this.storage.base64ToBlob(
+                feat.properties.audio.embeddedBinaryBase64,
+                feat.properties.audio.embeddedMimeType || 'audio/wav'
+              );
+            }
+            await this.storage.saveSound(feat, audioBlob);
+            this.audio.createSoundSource(feat, audioBlob);
+            this.map.addSoundFeature(feat);
+          }
+          this.updateHUD();
+          alert(`Successfully ingested ${geoData.features.length} soundscapes into session!`);
+        }
+      } else if (file.type.startsWith('audio/') || file.name.match(/\.(wav|mp3|ogg|flac|m4a|aac)$/i)) {
+        // Direct audio file drop: Pin recording at listener position
+        const coords = this.audio.listenerPosition || this.map.initialCenter;
+        const soundId = `rec_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+        const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+
+        const newFeature = {
+          type: 'Feature',
+          id: soundId,
+          geometry: {
+            type: 'Point',
+            coordinates: coords
+          },
+          properties: {
+            title: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
+            recordist: 'Field Importer',
+            timestamp: new Date().toISOString(),
+            synthType: null,
+            audio: {
+              format: file.type || 'audio/wav',
+              duration: 0,
+              channels: 2,
+              channelFormat: 'stereo',
+              sampleRate: 48000,
+              micConfiguration: 'Field Capture'
+            },
+            spatialPlayback: {
+              triggerType: 'proximity',
+              radiusMeters: 60,
+              rolloff: 'exponential',
+              loop: true,
+              attenuationMaxDb: -60
+            },
+            archival: {
+              license: 'CC-BY-SA 4.0',
+              taxonomies: ['biophony'],
+              weather: 'Imported capture',
+              equipment: 'Direct File Drop',
+              description: `Imported audio asset: ${file.name}`
+            }
+          }
+        };
+
+        await this.storage.saveSound(newFeature, file);
+        this.audio.createSoundSource(newFeature, file);
+        this.map.addSoundFeature(newFeature);
+        this.openFeatureDetails(newFeature);
+        this.updateHUD();
+        alert(`Successfully imported audio asset "${file.name}"!`);
+      }
+    } catch (err) {
+      console.error('Import error:', err);
+      alert('Error importing file: ' + err.message);
+    }
+  }
+
+  /**
+   * Setup global window drag-and-drop listener for seamless viewport data ingestion
+   */
+  setupViewportDragAndDrop() {
+    const overlay = document.getElementById('viewport-drop-overlay');
+    let dragCounter = 0;
+
+    if (overlay) {
+      overlay.addEventListener('click', () => {
+        overlay.classList.add('hidden');
+        dragCounter = 0;
+      });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay) {
+        overlay.classList.add('hidden');
+        dragCounter = 0;
+      }
+    });
+
+    window.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+        dragCounter++;
+        if (overlay) overlay.classList.remove('hidden');
+      }
+    });
+
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+
+    window.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter <= 0 && overlay) {
+        overlay.classList.add('hidden');
+        dragCounter = 0;
+      }
+    });
+
+    window.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      if (overlay) overlay.classList.add('hidden');
+
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        for (let i = 0; i < e.dataTransfer.files.length; i++) {
+          await this.handleImportFile(e.dataTransfer.files[i]);
+        }
+      }
+    });
+  }
+
+  /**
+   * Monitor online/offline network lifecycle and update UI badge
+   */
+  initNetworkStatus() {
+    const badge = document.getElementById('network-status-badge');
+    const updateStatus = () => {
+      if (!badge) return;
+      if (navigator.onLine) {
+        badge.className = 'network-badge online';
+        badge.innerText = '🟢 Online';
+        badge.title = 'Connected to network';
+      } else {
+        badge.className = 'network-badge offline';
+        badge.innerText = '📶 Offline Cached';
+        badge.title = 'Operating offline via Service Worker cache';
+      }
+    };
+
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+    updateStatus();
+  }
+
   toggleAddPinMode() {
     const active = !this.map.isAddingPin;
     this.map.setAddingPinMode(active);
+  }
+
+  startPolygonDrawMode() {
+    this.closeDrawer();
+    this.map.startDrawingPolygon({
+      onComplete: (coords) => {
+        this.openAddPolygonModal(coords);
+      }
+    });
+  }
+
+  openAddPolygonModal(coordinates) {
+    this.pendingPolygonCoords = coordinates;
+
+    // Calculate metrics
+    const area = Math.round(GeoEngine.calculatePolygonArea(coordinates));
+    const perimeter = Math.round(GeoEngine.calculatePolygonPerimeter(coordinates));
+    const vertexCount = Array.isArray(coordinates[0]) ? coordinates[0].length - 1 : coordinates.length;
+
+    const vEl = document.getElementById('poly-modal-vertices');
+    const aEl = document.getElementById('poly-modal-area');
+    const pEl = document.getElementById('poly-modal-perimeter');
+    if (vEl) vEl.innerText = `Vertices: ${vertexCount}`;
+    if (aEl) aEl.innerText = `Area: ~${area.toLocaleString()} m²`;
+    if (pEl) pEl.innerText = `Perimeter: ~${perimeter.toLocaleString()} m`;
+
+    document.getElementById('add-polygon-modal')?.classList.remove('hidden');
+  }
+
+  closeAddPolygonModal() {
+    this.pendingPolygonCoords = null;
+    document.getElementById('add-polygon-modal')?.classList.add('hidden');
+    document.getElementById('add-polygon-form')?.reset();
+    const bufVal = document.getElementById('poly-modal-buffer-val');
+    if (bufVal) bufVal.innerText = '50m';
+  }
+
+  async handleSaveNewPolygonZone() {
+    if (!this.pendingPolygonCoords) return;
+
+    const title = document.getElementById('poly-field-title').value.trim() || 'Untitled Habitat Zone';
+    const recordist = document.getElementById('poly-field-recordist').value.trim() || 'Field Ecologist';
+    const taxonomy = document.getElementById('poly-field-taxonomy').value || 'biophony';
+    const synthType = document.getElementById('poly-field-synth').value || 'water';
+    const buffer = parseInt(document.getElementById('poly-field-radius').value, 10) || 50;
+    const description = document.getElementById('poly-field-description').value.trim() || '';
+    const audioFileInput = document.getElementById('poly-field-audio-file');
+
+    let audioBlob = null;
+    if (audioFileInput.files && audioFileInput.files[0]) {
+      audioBlob = audioFileInput.files[0];
+    }
+
+    const soundId = `zone_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const newFeature = {
+      type: 'Feature',
+      id: soundId,
+      geometry: {
+        type: 'Polygon',
+        coordinates: this.pendingPolygonCoords
+      },
+      properties: {
+        title,
+        recordist,
+        timestamp: new Date().toISOString(),
+        synthType: audioBlob ? null : synthType,
+        audio: {
+          format: audioBlob ? audioBlob.type : 'audio/synthetic',
+          duration: 0,
+          channels: 2,
+          channelFormat: 'stereo',
+          sampleRate: 48000,
+          micConfiguration: 'Zone Ambient Habitat'
+        },
+        spatialPlayback: {
+          triggerType: 'proximity',
+          radiusMeters: buffer,
+          rolloff: 'exponential',
+          loop: true,
+          attenuationMaxDb: -60
+        },
+        archival: {
+          license: 'CC-BY-SA 4.0',
+          taxonomies: [taxonomy],
+          weather: 'Acoustic Zone Boundary',
+          equipment: 'Geofence Cartography',
+          description
+        }
+      }
+    };
+
+    // 1. Save to Storage (IndexedDB)
+    await this.storage.saveSound(newFeature, audioBlob);
+
+    // 2. Add to Audio Engine
+    this.audio.createSoundSource(newFeature, audioBlob);
+
+    // 3. Add to Map Controller
+    this.map.addSoundFeature(newFeature);
+
+    // 4. Close modal and open drawer
+    this.closeAddPolygonModal();
+    this.openFeatureDetails(newFeature);
+    this.updateHUD();
+  }
+
+  startPolygonEditMode(feature) {
+    this.closeDrawer();
+    this.map.startEditingPolygon(feature, {
+      onSave: async (updatedFeat) => {
+        await this.storage.saveSound(updatedFeat);
+        this.audio.updateSoundSource(updatedFeat);
+        this.openFeatureDetails(updatedFeat);
+        this.updateHUD();
+      },
+      onCancel: () => {
+        this.openFeatureDetails(feature);
+      }
+    });
+  }
+
+  /* ==========================================================================
+     Soundwalk Trajectory Drawing & Reshaping UI Handlers
+     ========================================================================== */
+
+  startSoundwalkDrawMode() {
+    this.closeDrawer();
+    this.map.startDrawingSoundwalk({
+      onComplete: (coords) => {
+        this.openAddSoundwalkModal(coords);
+      }
+    });
+  }
+
+  openAddSoundwalkModal(coordinates) {
+    this.pendingSoundwalkCoords = coordinates;
+
+    const totalDist = Math.round(GeoEngine.calculateLineLength(coordinates));
+    const distText = totalDist > 1000 ? `${(totalDist / 1000).toFixed(2)} km` : `~${totalDist} m`;
+    const waypointsCount = coordinates.length;
+
+    const wpEl = document.getElementById('soundwalk-modal-waypoints');
+    const dEl = document.getElementById('soundwalk-modal-distance');
+    if (wpEl) wpEl.innerText = `Waypoints: ${waypointsCount}`;
+    if (dEl) dEl.innerText = `Total Length: ${distText}`;
+
+    // Render dynamic per-waypoint stem attachment rows
+    const container = document.getElementById('soundwalk-modal-waypoints-list');
+    if (container) {
+      container.innerHTML = coordinates.map((c, i) => `
+        <div class="modal-waypoint-card" data-wp-index="${i}">
+          <div class="modal-wp-header">
+            <span class="modal-wp-badge">${i === 0 ? '⚑ Trailhead' : (i + 1)}</span>
+            <input type="text" class="modal-wp-name-input form-input" value="${i === 0 ? 'Trailhead' : 'Waypoint ' + (i + 1)}" placeholder="Waypoint Name">
+          </div>
+          <div class="modal-wp-body">
+            <div class="modal-wp-col">
+              <label>Acoustic Preset</label>
+              <select class="modal-wp-synth-select form-select">
+                <option value="" selected>None / Inherit Bed</option>
+                <option value="birdsong">Birdsong / Canopy</option>
+                <option value="water">Water / Shoreline</option>
+                <option value="wind">Wind / Rustle</option>
+              </select>
+            </div>
+            <div class="modal-wp-col">
+              <label>Stem Audio File (Optional)</label>
+              <input type="file" class="modal-wp-file-input" accept="audio/*">
+            </div>
+            <div class="modal-wp-col">
+              <label>Trigger Radius: <span class="wp-radius-val">30m</span></label>
+              <input type="range" class="modal-wp-radius-slider volume-slider" min="10" max="100" step="5" value="30">
+            </div>
+            <div class="modal-wp-col">
+              <label>Stem Volume: <span class="wp-vol-val">85%</span></label>
+              <input type="range" class="modal-wp-vol-slider volume-slider" min="0" max="100" step="1" value="85">
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      // Wire radius and volume slider text updates in modal
+      container.querySelectorAll('.modal-waypoint-card').forEach(card => {
+        const rSlider = card.querySelector('.modal-wp-radius-slider');
+        const rVal = card.querySelector('.wp-radius-val');
+        if (rSlider && rVal) {
+          rSlider.addEventListener('input', (e) => { rVal.innerText = `${e.target.value}m`; });
+        }
+        const vSlider = card.querySelector('.modal-wp-vol-slider');
+        const vVal = card.querySelector('.wp-vol-val');
+        if (vSlider && vVal) {
+          vSlider.addEventListener('input', (e) => { vVal.innerText = `${e.target.value}%`; });
+        }
+      });
+    }
+
+    document.getElementById('add-soundwalk-modal')?.classList.remove('hidden');
+  }
+
+  closeAddSoundwalkModal() {
+    this.pendingSoundwalkCoords = null;
+    document.getElementById('add-soundwalk-modal')?.classList.add('hidden');
+    document.getElementById('add-soundwalk-form')?.reset();
+    const bufVal = document.getElementById('soundwalk-modal-buffer-val');
+    if (bufVal) bufVal.innerText = '40m';
+    const synthVal = document.getElementById('soundwalk-modal-synth-vol-val');
+    if (synthVal) synthVal.innerText = '35%';
+    const audioVal = document.getElementById('soundwalk-modal-audio-vol-val');
+    if (audioVal) audioVal.innerText = '85%';
+    const container = document.getElementById('soundwalk-modal-waypoints-list');
+    if (container) container.innerHTML = '';
+  }
+
+  async handleSaveNewSoundwalk() {
+    if (!this.pendingSoundwalkCoords) return;
+
+    const title = document.getElementById('soundwalk-field-title').value.trim() || 'Untitled Soundwalk Trail';
+    const recordist = document.getElementById('soundwalk-field-recordist').value.trim() || 'Acoustic Cartography Collective';
+    const taxonomy = document.getElementById('soundwalk-field-taxonomy').value || 'biophony';
+    const synthType = document.getElementById('soundwalk-field-synth').value || 'wind';
+    const synthVolume = (parseFloat(document.getElementById('soundwalk-field-synth-vol')?.value) || 35) / 100;
+    const audioVolume = (parseFloat(document.getElementById('soundwalk-field-audio-vol')?.value) || 85) / 100;
+    const radiusMeters = parseInt(document.getElementById('soundwalk-field-radius').value, 10) || 40;
+    const description = document.getElementById('soundwalk-field-description').value.trim() || '';
+    const audioFileInput = document.getElementById('soundwalk-field-audio-file');
+
+    let audioBlob = null;
+    if (audioFileInput.files && audioFileInput.files[0]) {
+      audioBlob = audioFileInput.files[0];
+    }
+
+    const soundId = `walk_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    
+    // Parse waypoints and collect any uploaded files per waypoint
+    const waypointCards = document.querySelectorAll('.modal-waypoint-card');
+    const waypoints = [];
+    const waypointBlobsMap = new Map();
+
+    for (let i = 0; i < this.pendingSoundwalkCoords.length; i++) {
+      const card = waypointCards[i];
+      let wpName = i === 0 ? 'Trailhead' : `Waypoint ${i + 1}`;
+      let wpSynth = null;
+      let wpRadius = 30;
+      let wpVol = 0.85;
+      let wpBlob = null;
+
+      if (card) {
+        const nameIn = card.querySelector('.modal-wp-name-input');
+        if (nameIn && nameIn.value.trim()) wpName = nameIn.value.trim();
+        const synthSel = card.querySelector('.modal-wp-synth-select');
+        if (synthSel && synthSel.value) wpSynth = synthSel.value;
+        const radIn = card.querySelector('.modal-wp-radius-slider');
+        if (radIn) wpRadius = parseInt(radIn.value, 10) || 30;
+        const volIn = card.querySelector('.modal-wp-vol-slider');
+        if (volIn) wpVol = (parseFloat(volIn.value) || 85) / 100;
+        const fileIn = card.querySelector('.modal-wp-file-input');
+        if (fileIn && fileIn.files && fileIn.files[0]) {
+          wpBlob = fileIn.files[0];
+        }
+      }
+
+      waypoints.push({
+        index: i,
+        name: wpName,
+        coords: this.pendingSoundwalkCoords[i],
+        radiusMeters: wpRadius,
+        volume: wpVol,
+        synthType: wpSynth
+      });
+
+      if (wpBlob) {
+        waypointBlobsMap.set(i, wpBlob);
+      }
+    }
+
+    const newFeature = {
+      type: 'Feature',
+      id: soundId,
+      geometry: {
+        type: 'LineString',
+        coordinates: this.pendingSoundwalkCoords
+      },
+      properties: {
+        title,
+        recordist,
+        timestamp: new Date().toISOString(),
+        synthType: synthType,
+        audio: {
+          format: audioBlob ? audioBlob.type : 'audio/synthetic',
+          duration: 0,
+          channels: 2,
+          channelFormat: 'binaural',
+          sampleRate: 48000,
+          micConfiguration: 'Guided Trail Acoustic Path'
+        },
+        spatialPlayback: {
+          triggerType: 'soundwalk_path',
+          radiusMeters,
+          synthVolume,
+          audioVolume,
+          rolloff: 'linear',
+          loop: true,
+          attenuationMaxDb: -45,
+          waypoints
+        },
+        archival: {
+          license: 'CC-BY-SA 4.0',
+          taxonomies: [taxonomy],
+          weather: 'Soundwalk Trajectory Route',
+          equipment: 'Polyline Acoustic Cartography',
+          description
+        }
+      }
+    };
+
+    // 1. Save sound feature & primary audio blob to Storage (IndexedDB)
+    await this.storage.saveSound(newFeature, audioBlob);
+
+    // 2. Save any waypoint audio blobs to IndexedDB
+    for (const [wpIdx, wpBlob] of waypointBlobsMap) {
+      await this.storage.saveWaypointAudioBlob(soundId, wpIdx, wpBlob);
+    }
+
+    // 3. Add to Audio Engine with both primary and waypoint audio blobs
+    this.audio.createSoundSource(newFeature, audioBlob, waypointBlobsMap);
+
+    // 4. Add to Map Controller
+    this.map.addSoundFeature(newFeature);
+
+    // 5. Close modal and open drawer
+    this.closeAddSoundwalkModal();
+    this.openFeatureDetails(newFeature);
+    this.updateHUD();
+  }
+
+  startSoundwalkEditMode(feature) {
+    this.closeDrawer();
+    this.map.startEditingSoundwalk(feature, {
+      onSave: async (updatedFeat) => {
+        await this.storage.saveSound(updatedFeat);
+        this.audio.updateSoundSource(updatedFeat);
+        this.openFeatureDetails(updatedFeat);
+        this.updateHUD();
+      },
+      onCancel: () => {
+        this.openFeatureDetails(feature);
+      }
+    });
   }
 
   openAddSoundModal(coords) {
@@ -534,7 +1295,7 @@ export class UIController {
     const coords = feature.geometry.coordinates;
 
     document.getElementById('edit-sound-id').value = feature.id;
-    document.getElementById('edit-field-coords').value = `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`;
+    document.getElementById('edit-field-coords').value = GeoEngine.formatCoords(coords);
     document.getElementById('edit-field-title').value = props.title || '';
     document.getElementById('edit-field-recordist').value = props.recordist || '';
     document.getElementById('edit-field-taxonomy').value = arch.taxonomies?.[0] || 'biophony';
@@ -883,10 +1644,69 @@ export class UIController {
         : 'Stereo (2-Ch)';
     }
 
+    // Toggle Polygon Reshape Button vs Soundwalk Edit Button vs Point Move Button
+    const geomType = feature.geometry?.type || 'Point';
+    const isPolygon = geomType === 'Polygon' || geomType === 'MultiPolygon';
+    const isLineString = geomType === 'LineString' || geomType === 'MultiLineString';
+
+    const editPolyBtn = document.getElementById('btn-edit-polygon-shape');
+    const editSoundwalkBtn = document.getElementById('btn-edit-soundwalk-shape');
+    const movePinBtn = document.getElementById('btn-move-pin');
+    if (editPolyBtn) {
+      editPolyBtn.style.display = isPolygon ? 'inline-flex' : 'none';
+    }
+    if (editSoundwalkBtn) {
+      editSoundwalkBtn.style.display = isLineString ? 'inline-flex' : 'none';
+    }
+    if (movePinBtn) {
+      movePinBtn.style.display = (!isPolygon && !isLineString) ? 'inline-flex' : 'none';
+    }
+
+    // Toggle Soundwalk Multi-Track Mixer Deck
+    const soundwalkDeck = document.getElementById('soundwalk-drawer-deck');
+    if (soundwalkDeck) {
+      if (isLineString) {
+        soundwalkDeck.style.display = 'block';
+
+        const synthVol = props.spatialPlayback?.synthVolume !== undefined ? Math.round(props.spatialPlayback.synthVolume * 100) : 35;
+        const audioVol = props.spatialPlayback?.audioVolume !== undefined ? Math.round(props.spatialPlayback.audioVolume * 100) : 85;
+        const synthType = props.synthType || 'wind';
+        const synthNameMap = {
+          wind: 'Wind / Canopy Rustle',
+          water: 'Water / Shoreline Lapping',
+          birdsong: 'Birdsong / Forest Chorus',
+          urban: 'Urban / City Ambience'
+        };
+
+        const synthNameEl = document.getElementById('drawer-soundwalk-synth-name');
+        const synthSlider = document.getElementById('drawer-soundwalk-synth-slider');
+        const synthValEl = document.getElementById('drawer-soundwalk-synth-val');
+        if (synthNameEl) synthNameEl.innerText = synthNameMap[synthType] || synthType;
+        if (synthSlider) synthSlider.value = synthVol;
+        if (synthValEl) synthValEl.innerText = `${synthVol}%`;
+
+        const audioStatusEl = document.getElementById('drawer-soundwalk-audio-status');
+        const audioSlider = document.getElementById('drawer-soundwalk-audio-slider');
+        const audioValEl = document.getElementById('drawer-soundwalk-audio-val');
+        if (audioSlider) audioSlider.value = audioVol;
+        if (audioValEl) audioValEl.innerText = `${audioVol}%`;
+
+        const soundNode = this.audio.soundNodes.get(feature.id);
+        const hasAudioTrack = !!(soundNode?.audioBlob || (props.audio?.url && props.audio.url.startsWith('http')));
+        if (audioStatusEl) {
+          audioStatusEl.innerText = hasAudioTrack ? '🎵 Master Trail Audio Active' : 'No Audio File Pinned';
+        }
+
+        this.renderDrawerWaypoints(feature);
+      } else {
+        soundwalkDeck.style.display = 'none';
+      }
+    }
+
     // Reset Audition button state
     const auditionBtn = document.getElementById('btn-audition-toggle');
     if (auditionBtn) {
-      if (this.audio.activeAuditionId === feature.id) {
+      if (this.audio.activeAuditionId === feature.id && this.audio.activeAuditionWaypoint === null) {
         auditionBtn.classList.add('active');
         auditionBtn.innerHTML = '<span>⏸</span> Stop Audition';
       } else {
@@ -894,6 +1714,161 @@ export class UIController {
         auditionBtn.innerHTML = '<span>▶</span> Solo Audition';
       }
     }
+  }
+
+  /**
+   * Renders the dynamic Waypoint Stem Deck cards in the Playback Drawer
+   */
+  async renderDrawerWaypoints(feature) {
+    const listEl = document.getElementById('drawer-waypoints-list');
+    const countEl = document.getElementById('drawer-waypoints-count');
+    if (!listEl) return;
+
+    const waypoints = feature.properties?.spatialPlayback?.waypoints || [];
+    if (countEl) countEl.innerText = waypoints.length;
+
+    if (waypoints.length === 0) {
+      listEl.innerHTML = '<div class="empty-waypoints-hint">No waypoints defined for this trail.</div>';
+      return;
+    }
+
+    const soundNode = this.audio.soundNodes.get(feature.id);
+    const htmlCards = [];
+
+    for (let i = 0; i < waypoints.length; i++) {
+      const wp = waypoints[i];
+      const wpIdx = wp.index !== undefined ? wp.index : i;
+      const wpCoords = GeoEngine.toCoordPair(wp.coords);
+      const dist = wpCoords ? Math.round(GeoEngine.getDistance(this.audio.listenerPosition, wpCoords)) : 0;
+      const vol = wp.volume !== undefined ? Math.round(wp.volume * 100) : 85;
+      const radius = wp.radiusMeters || wp.radius || 30;
+      const synthType = wp.synthType || null;
+      const hasBlob = soundNode?.waypointNodes?.get(wpIdx)?.audioBlob || (wp.audio?.url && wp.audio.url.startsWith('http'));
+
+      let statusBadge = '';
+      if (hasBlob) {
+        statusBadge = '<span class="wp-stem-badge file-active">🎵 Audio Stem Attached</span>';
+      } else if (synthType) {
+        statusBadge = `<span class="wp-stem-badge synth-active">✨ Procedural: ${synthType}</span>`;
+      } else {
+        statusBadge = '<span class="wp-stem-badge none">Inherits Trail Bed</span>';
+      }
+
+      const isAuditioning = this.audio.activeAuditionId === feature.id && this.audio.activeAuditionWaypoint === wpIdx;
+
+      htmlCards.push(`
+        <div class="drawer-waypoint-card ${isAuditioning ? 'auditioning' : ''}" data-wp-index="${wpIdx}">
+          <div class="drawer-wp-top">
+            <div class="drawer-wp-identity">
+              <span class="drawer-wp-badge">${wpIdx === 0 ? '⚑ Trailhead' : (wpIdx + 1)}</span>
+              <span class="drawer-wp-title">${wp.name || `Waypoint ${wpIdx + 1}`}</span>
+            </div>
+            <div class="drawer-wp-telemetry">
+              <span class="drawer-wp-dist" id="drawer-wp-dist-${feature.id}-${wpIdx}">${dist}m</span>
+              <button class="btn-wp-audition ${isAuditioning ? 'active' : ''}" data-sound-id="${feature.id}" data-wp-index="${wpIdx}" title="Solo Audition this Waypoint Stem">
+                ${isAuditioning ? '⏸ Solo' : '▶ Solo'}
+              </button>
+            </div>
+          </div>
+
+          <div class="drawer-wp-mid">
+            ${statusBadge}
+            <span class="drawer-wp-radius-tag">Radius: ${radius}m</span>
+          </div>
+
+          <div class="drawer-wp-controls">
+            <div class="drawer-wp-vol-group">
+              <label>Stem Volume: <span class="drawer-wp-vol-val">${vol}%</span></label>
+              <input type="range" class="drawer-wp-vol-slider volume-slider" min="0" max="100" step="1" value="${vol}" data-sound-id="${feature.id}" data-wp-index="${wpIdx}">
+            </div>
+            <div class="drawer-wp-actions">
+              <label class="btn-wp-upload" title="Attach Audio File to Waypoint">
+                📁 File
+                <input type="file" class="drawer-wp-file-input" accept="audio/*" data-sound-id="${feature.id}" data-wp-index="${wpIdx}" style="display: none;">
+              </label>
+              <select class="drawer-wp-synth-select form-select" data-sound-id="${feature.id}" data-wp-index="${wpIdx}">
+                <option value="" ${!synthType ? 'selected' : ''}>Bed Only</option>
+                <option value="birdsong" ${synthType === 'birdsong' ? 'selected' : ''}>Birdsong</option>
+                <option value="water" ${synthType === 'water' ? 'selected' : ''}>Water</option>
+                <option value="wind" ${synthType === 'wind' ? 'selected' : ''}>Wind</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      `);
+    }
+
+    listEl.innerHTML = htmlCards.join('');
+
+    // Wire events inside waypoint cards
+    listEl.querySelectorAll('.drawer-wp-vol-slider').forEach(slider => {
+      slider.addEventListener('input', (e) => {
+        const soundId = e.target.dataset.soundId;
+        const wpIdx = parseInt(e.target.dataset.wpIndex, 10);
+        const val = parseInt(e.target.value, 10);
+        const card = e.target.closest('.drawer-waypoint-card');
+        if (card) {
+          const valSpan = card.querySelector('.drawer-wp-vol-val');
+          if (valSpan) valSpan.innerText = `${val}%`;
+        }
+        this.audio.setWaypointVolume(soundId, wpIdx, val / 100);
+      });
+
+      slider.addEventListener('change', async (e) => {
+        const soundId = e.target.dataset.soundId;
+        const feat = this.selectedFeature;
+        if (feat && feat.id === soundId) {
+          await this.storage.saveSound(feat);
+        }
+      });
+    });
+
+    listEl.querySelectorAll('.btn-wp-audition').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const soundId = e.currentTarget.dataset.soundId;
+        const wpIdx = parseInt(e.currentTarget.dataset.wpIndex, 10);
+        if (this.audio.activeAuditionId === soundId && this.audio.activeAuditionWaypoint === wpIdx) {
+          this.audio.setSoloAudition(null);
+        } else {
+          this.audio.setSoloAudition(soundId, wpIdx);
+        }
+        this.renderDrawerWaypoints(feature);
+      });
+    });
+
+    listEl.querySelectorAll('.drawer-wp-file-input').forEach(input => {
+      input.addEventListener('change', async (e) => {
+        const soundId = e.target.dataset.soundId;
+        const wpIdx = parseInt(e.target.dataset.wpIndex, 10);
+        const file = e.target.files[0];
+        if (file && feature) {
+          await this.storage.saveWaypointAudioBlob(soundId, wpIdx, file);
+          this.audio.setWaypointAudio(soundId, wpIdx, file);
+          this.renderDrawerWaypoints(feature);
+        }
+      });
+    });
+
+    listEl.querySelectorAll('.drawer-wp-synth-select').forEach(sel => {
+      sel.addEventListener('change', async (e) => {
+        const soundId = e.target.dataset.soundId;
+        const wpIdx = parseInt(e.target.dataset.wpIndex, 10);
+        const val = e.target.value || null;
+        if (feature.properties?.spatialPlayback?.waypoints?.[wpIdx]) {
+          feature.properties.spatialPlayback.waypoints[wpIdx].synthType = val;
+          await this.storage.saveSound(feature);
+          const sound = this.audio.soundNodes.get(soundId);
+          if (sound) {
+            const wpNode = sound.waypointNodes.get(wpIdx);
+            if (wpNode) {
+              wpNode.synthType = val;
+              if (val) this.audio.attachWaypointProceduralAudio(wpNode);
+            }
+          }
+          this.renderDrawerWaypoints(feature);
+        }
+      });
+    });
   }
 
   closeDrawer() {
@@ -911,6 +1886,22 @@ export class UIController {
       coordsEl.innerText = GeoEngine.formatCoords(this.audio.listenerPosition);
     }
     this.updateHUDHeading(this.currentHeading);
+
+    // Live update waypoint distances in drawer if soundwalk is selected
+    if (this.isDrawerOpen && this.selectedFeature && (this.selectedFeature.geometry?.type === 'LineString' || this.selectedFeature.geometry?.type === 'MultiLineString')) {
+      const waypoints = this.selectedFeature.properties?.spatialPlayback?.waypoints || [];
+      waypoints.forEach((wp, idx) => {
+        const wpIdx = wp.index !== undefined ? wp.index : idx;
+        const wpDistEl = document.getElementById(`drawer-wp-dist-${this.selectedFeature.id}-${wpIdx}`);
+        if (wpDistEl) {
+          const wpCoords = GeoEngine.toCoordPair(wp.coords);
+          if (wpCoords) {
+            const d = Math.round(GeoEngine.getDistance(this.audio.listenerPosition, wpCoords));
+            wpDistEl.innerText = `${d}m`;
+          }
+        }
+      });
+    }
 
     const listEl = document.getElementById('active-sounds-list');
     if (listEl) {

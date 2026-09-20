@@ -19,11 +19,16 @@ class App {
   }
 
   async init() {
-    console.log('Initializing SonicMapper v0.5.0...');
+    console.log('Initializing SonicMapper v0.9.0...');
 
     // 1. Initialize Storage & Map Engines
     await this.storageEngine.init();
-    await this.mapController.init();
+
+    try {
+      await this.mapController.init();
+    } catch (mapErr) {
+      console.warn('MapController initialization warning (operating in offline fallback mode):', mapErr);
+    }
 
     // 2. Fetch Sample GeoJSON Manifest
     let defaultData = { features: [] };
@@ -51,12 +56,24 @@ class App {
 
     // 4. Register Sound Nodes (with Blob loading from IndexedDB)
     for (const feat of mergedFeatures) {
-      const audioBlob = await this.storageEngine.getAudioBlob(feat.id);
-      this.audioEngine.createSoundSource(feat, audioBlob);
+      try {
+        const audioBlob = await this.storageEngine.getAudioBlob(feat.id);
+        let wpBlobsMap = null;
+        if (feat.geometry?.type === 'LineString' || feat.geometry?.type === 'MultiLineString') {
+          wpBlobsMap = await this.storageEngine.getAllWaypointAudioBlobs(feat.id);
+        }
+        this.audioEngine.createSoundSource(feat, audioBlob, wpBlobsMap);
+      } catch (audioErr) {
+        console.warn(`Could not load audio for feature ${feat.id}:`, audioErr);
+      }
     }
 
     // 5. Render Sound Markers and Zones on Map
-    this.mapController.renderSoundscapeFeatures(fullSoundData);
+    try {
+      this.mapController.renderSoundscapeFeatures(fullSoundData);
+    } catch (renderErr) {
+      console.warn('Error rendering features on map:', renderErr);
+    }
 
     // 6. Initialize UI Coordinator
     this.uiController = new UIController({
@@ -74,7 +91,7 @@ class App {
     // 8. Connect Pin Click to Drawer & Pin Drop to Modal
     this.mapController.onSoundSelect = (feature) => {
       this.uiController.openFeatureDetails(feature);
-      this.mapController.focusOnPin(feature.geometry.coordinates);
+      this.mapController.focusOnPin(feature);
     };
 
     this.mapController.onPinDrop = (coords) => {
@@ -100,6 +117,19 @@ class App {
       }
     } catch (err) {
       console.warn('Version info load warning:', err);
+    }
+
+    // 10. Register PWA Service Worker for Offline Field Cartography
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => {
+            console.log('SonicMapper ServiceWorker active:', reg.scope);
+          })
+          .catch((err) => {
+            console.warn('ServiceWorker registration warning:', err.message);
+          });
+      });
     }
 
     console.log('SonicMapper ready.');
