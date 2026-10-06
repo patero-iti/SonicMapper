@@ -625,7 +625,11 @@ export class UIController {
     const exportOacpBtn = document.getElementById('btn-export-oacp');
     if (exportOacpBtn) {
       exportOacpBtn.addEventListener('click', async () => {
+        const originalContent = exportOacpBtn.innerHTML;
         try {
+          exportOacpBtn.disabled = true;
+          exportOacpBtn.innerHTML = `<span>⏳ Bundling OACP...</span>`;
+
           const currentFeatures = (this.map && this.map.features && this.map.features.length > 0)
             ? this.map.features
             : await this.storage.getAllFeatures();
@@ -634,6 +638,9 @@ export class UIController {
         } catch (err) {
           console.error('Failed to export OACP Package:', err);
           alert('Export failed: ' + err.message);
+        } finally {
+          exportOacpBtn.disabled = false;
+          exportOacpBtn.innerHTML = originalContent;
         }
       });
     }
@@ -696,7 +703,26 @@ export class UIController {
               );
             }
             await this.storage.saveSound(feat, audioBlob);
-            this.audio.createSoundSource(feat, audioBlob);
+
+            // Ingest any embedded waypoint audio binaries for soundwalks
+            const wpBlobsMap = new Map();
+            if (feat.properties?.spatialPlayback?.waypoints && Array.isArray(feat.properties.spatialPlayback.waypoints)) {
+              for (let i = 0; i < feat.properties.spatialPlayback.waypoints.length; i++) {
+                const wp = feat.properties.spatialPlayback.waypoints[i];
+                if (wp.audio?.embeddedBinaryBase64) {
+                  const wpBlob = this.storage.base64ToBlob(
+                    wp.audio.embeddedBinaryBase64,
+                    wp.audio.embeddedMimeType || 'audio/wav'
+                  );
+                  if (wpBlob) {
+                    await this.storage.saveWaypointAudioBlob(feat.id, i, wpBlob);
+                    wpBlobsMap.set(i, wpBlob);
+                  }
+                }
+              }
+            }
+
+            this.audio.createSoundSource(feat, audioBlob, wpBlobsMap.size > 0 ? wpBlobsMap : null);
             this.map.addSoundFeature(feat);
           }
           this.updateHUD();
