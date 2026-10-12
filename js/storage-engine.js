@@ -230,7 +230,43 @@ export class StorageEngine {
   }
 
   /**
-   * Helper to convert Blob to Base64 data URL
+   * Helper to stream/chunk a Blob to Base64 parts into an array without exceeding V8 string limits
+   */
+  async appendBlobBase64Chunks(blob, partsArray) {
+    if (!blob) {
+      partsArray.push('null');
+      return;
+    }
+
+    const mimeType = blob.type || 'audio/wav';
+    partsArray.push(`"data:${mimeType};base64,`);
+
+    // 3MB chunks: exact multiple of 3 ensures no Base64 padding '=' characters between intermediate chunk boundaries
+    const CHUNK_SIZE = 3 * 1024 * 1024;
+    let offset = 0;
+
+    while (offset < blob.size) {
+      const slice = blob.slice(offset, Math.min(offset + CHUNK_SIZE, blob.size));
+      const buffer = await slice.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+
+      let binary = '';
+      const subChunk = 16384;
+      for (let i = 0; i < bytes.byteLength; i += subChunk) {
+        const sub = bytes.subarray(i, Math.min(i + subChunk, bytes.byteLength));
+        binary += String.fromCharCode.apply(null, sub);
+      }
+      
+      const base64Chunk = window.btoa(binary);
+      partsArray.push(base64Chunk);
+      offset += CHUNK_SIZE;
+    }
+
+    partsArray.push('"');
+  }
+
+  /**
+   * Helper to convert Blob to Base64 data URL (for small Blobs or fallback)
    */
   async blobToBase64(blob) {
     return new Promise((resolve, reject) => {
@@ -242,25 +278,40 @@ export class StorageEngine {
   }
 
   /**
-   * Helper to convert Base64 data URL to Blob
+   * Helper to convert Base64 data URL to Blob safely in chunks to avoid memory & stack limits
    */
   base64ToBlob(base64Data, mimeType = 'audio/wav') {
-    const parts = base64Data.split(';base64,');
-    const contentType = parts.length > 1 ? parts[0].replace('data:', '') : mimeType;
-    const raw = window.atob(parts.length > 1 ? parts[1] : parts[0]);
-    const rawLength = raw.length;
-    const uInt8Array = new Uint8Array(rawLength);
+    if (!base64Data || typeof base64Data !== 'string') return null;
+    try {
+      const parts = base64Data.split(';base64,');
+      const contentType = parts.length > 1 ? parts[0].replace('data:', '') : mimeType;
+      const rawBase64 = parts.length > 1 ? parts[1] : parts[0];
 
-    for (let i = 0; i < rawLength; ++i) {
-      uInt8Array[i] = raw.charCodeAt(i);
+      // Decode Base64 in 65536 char chunks (must be a multiple of 4)
+      const b64ChunkSize = 65536;
+      const byteChunks = [];
+
+      for (let i = 0; i < rawBase64.length; i += b64ChunkSize) {
+        const b64Slice = rawBase64.slice(i, i + b64ChunkSize);
+        const binaryChunk = window.atob(b64Slice);
+        const u8 = new Uint8Array(binaryChunk.length);
+        for (let j = 0; j < binaryChunk.length; j++) {
+          u8[j] = binaryChunk.charCodeAt(j);
+        }
+        byteChunks.push(u8);
+      }
+
+      return new Blob(byteChunks, { type: contentType });
+    } catch (err) {
+      console.error('Error converting base64 to Blob:', err);
+      return null;
     }
-
-    return new Blob([uInt8Array], { type: contentType });
   }
 
   /**
    * Exports an Open Audio Cartography Protocol (OACP) Archival Bundle
-   * Embeds spatial GeoJSON metadata + base64 binary audio payloads into a standalone portable JSON package.
+   * Embeds spatial GeoJSON metadata + chunked base64 binary audio payloads into a standalone portable JSON package.
+   * Uses chunked Blob part streaming to completely eliminate V8 string length and memory exhaustion limits.
    */
   async exportOACPBundle(features = null) {
     if (!this.db) await this.init();
@@ -273,51 +324,109 @@ export class StorageEngine {
       allFeatures = [];
     }
 
-    const embeddedFeatures = [];
-    for (const feat of allFeatures) {
-      const clone = JSON.parse(JSON.stringify(feat));
-      const audioBlob = await this.getAudioBlob(feat.id);
-      if (audioBlob) {
-        const base64Data = await this.blobToBase64(audioBlob);
-        clone.properties.audio = {
-          ...(clone.properties.audio || {}),
-          embeddedBinaryBase64: base64Data,
-          embeddedMimeType: audioBlob.type
+    const blobParts = [];
+    blobParts.push('{\n  "protocol": "OpenAudioCartographyProtocol/1.0",\n  "type": "FeatureCollection",\n  "metadata": {\n');
+    blobParts.push(`    "title": "SonicMapper Complete Archival Soundscape Package (OACP Bundle)",\n`);
+    blobParts.push(`    "exportedAt": ${JSON.stringify(new Date().toISOString())},\n`);
+    blobParts.push(`    "featureCount": ${allFeatures.length},\n`);
+    blobParts.push(`    "hasEmbeddedBinaries": true\n`);
+    blobParts.push('  },\n  "features": [\n');
+
+    for (let featIdx = 0; featIdx < allFeatures.length; featIdx++) {
+      const feat = allFeatures[featIdx];
+      // Clone feature without binary payloads to maintain clean metadata
+      const featClone = JSON.parse(JSON.stringify(feat));
+
+      const primaryAudioBlob = await this.getAudioBlob(feat.id);
+      const waypoints = featClone.properties?.spatialPlayback?.waypoints;
+      const waypointBlobs = [];
+      if (Array.isArray(waypoints)) {
+        for (let w = 0; w < waypoints.length; w++) {
+          const wpBlob = await this.getWaypointAudioBlob(feat.id, w);
+          waypointBlobs.push(wpBlob);
+        }
+      }
+
+      const hasPrimary = !!primaryAudioBlob;
+      const hasWaypoints = waypointBlobs.some(b => !!b);
+
+      // If no binary audio for this feature, serialize metadata directly
+      if (!hasPrimary && !hasWaypoints) {
+        const featureStr = JSON.stringify(featClone, null, 2).replace(/\n/g, '\n    ');
+        blobParts.push('    ' + featureStr);
+        if (featIdx < allFeatures.length - 1) blobParts.push(',\n');
+        else blobParts.push('\n');
+        continue;
+      }
+
+      // Generate unique token placeholders for audio binaries
+      const PRIMARY_AUDIO_TOKEN = `__OACP_PRIMARY_AUDIO_TOKEN_${Date.now()}_${Math.random().toString(36).slice(2)}__`;
+      const WAYPOINT_TOKEN_PREFIX = `__OACP_WAYPOINT_TOKEN_${Date.now()}_${Math.random().toString(36).slice(2)}_`;
+
+      if (hasPrimary) {
+        featClone.properties.audio = {
+          ...(featClone.properties.audio || {}),
+          embeddedBinaryBase64: PRIMARY_AUDIO_TOKEN,
+          embeddedMimeType: primaryAudioBlob.type || 'audio/wav'
         };
       }
 
-      // Check for waypoint audio blobs if feature is a soundwalk
-      if (clone.properties?.spatialPlayback?.waypoints && Array.isArray(clone.properties.spatialPlayback.waypoints)) {
-        for (let i = 0; i < clone.properties.spatialPlayback.waypoints.length; i++) {
-          const wpBlob = await this.getWaypointAudioBlob(feat.id, i);
-          if (wpBlob) {
-            const wpBase64 = await this.blobToBase64(wpBlob);
-            clone.properties.spatialPlayback.waypoints[i].audio = {
-              ...(clone.properties.spatialPlayback.waypoints[i].audio || {}),
-              embeddedBinaryBase64: wpBase64,
-              embeddedMimeType: wpBlob.type
+      if (Array.isArray(waypoints)) {
+        for (let w = 0; w < waypoints.length; w++) {
+          if (waypointBlobs[w]) {
+            waypoints[w].audio = {
+              ...(waypoints[w].audio || {}),
+              embeddedBinaryBase64: `${WAYPOINT_TOKEN_PREFIX}${w}__`,
+              embeddedMimeType: waypointBlobs[w].type || 'audio/wav'
             };
           }
         }
       }
 
-      embeddedFeatures.push(clone);
+      // Stringify the skeleton with formatted indentation
+      const featureSkeleton = '    ' + JSON.stringify(featClone, null, 2).replace(/\n/g, '\n    ');
+
+      // Match quoted tokens: "__OACP_..."
+      const tokenRegex = new RegExp(`"(${PRIMARY_AUDIO_TOKEN}|${WAYPOINT_TOKEN_PREFIX}(\\d+)__)"`, 'g');
+      let cursor = 0;
+      let match;
+
+      while ((match = tokenRegex.exec(featureSkeleton)) !== null) {
+        const matchStart = match.index;
+        const matchEnd = tokenRegex.lastIndex;
+
+        // Push text preceding the token
+        blobParts.push(featureSkeleton.substring(cursor, matchStart));
+
+        const matchedToken = match[1];
+        if (matchedToken === PRIMARY_AUDIO_TOKEN && primaryAudioBlob) {
+          await this.appendBlobBase64Chunks(primaryAudioBlob, blobParts);
+        } else if (matchedToken.startsWith(WAYPOINT_TOKEN_PREFIX)) {
+          const wpIdx = parseInt(match[2], 10);
+          const wpBlob = waypointBlobs[wpIdx];
+          if (wpBlob) {
+            await this.appendBlobBase64Chunks(wpBlob, blobParts);
+          } else {
+            blobParts.push('null');
+          }
+        }
+
+        cursor = matchEnd;
+      }
+
+      // Push remaining portion of the feature JSON
+      blobParts.push(featureSkeleton.substring(cursor));
+
+      if (featIdx < allFeatures.length - 1) {
+        blobParts.push(',\n');
+      } else {
+        blobParts.push('\n');
+      }
     }
 
-    const bundle = {
-      protocol: 'OpenAudioCartographyProtocol/1.0',
-      type: 'FeatureCollection',
-      metadata: {
-        title: 'SonicMapper Complete Archival Soundscape Package (OACP Bundle)',
-        exportedAt: new Date().toISOString(),
-        featureCount: embeddedFeatures.length,
-        hasEmbeddedBinaries: true
-      },
-      features: embeddedFeatures
-    };
+    blobParts.push('  ]\n}\n');
 
-    const jsonStr = JSON.stringify(bundle, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const blob = new Blob(blobParts, { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement('a');
@@ -328,6 +437,6 @@ export class StorageEngine {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    return bundle;
+    return true;
   }
 }

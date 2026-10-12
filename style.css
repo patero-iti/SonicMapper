@@ -220,8 +220,33 @@ body:not(.pin-drop-mode) .pin-drop-banner {
 
 .btn-quick-add:hover {
   background: #ffffff;
+  color: var(--brand-hot-pink);
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(232, 59, 178, 0.65);
+}
+
+#btn-quick-draw-polygon {
+  background: linear-gradient(135deg, #d946ef 0%, #e83bb2 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(217, 70, 239, 0.45);
+}
+
+#btn-quick-draw-polygon:hover {
+  background: #ffffff;
+  color: #d946ef;
+  box-shadow: 0 6px 20px rgba(217, 70, 239, 0.7);
+}
+
+#btn-quick-draw-soundwalk {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  color: #000000;
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.45);
+}
+
+#btn-quick-draw-soundwalk:hover {
+  background: #ffffff;
+  color: #0891b2;
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.7);
 }
 
 /* Hamburger Menu Toggle Button */
@@ -1383,36 +1408,94 @@ body:not(.pin-drop-mode) .pin-drop-banner {
 @media (max-width: 768px) {
   /* Navigation & MapLibre Controls */
   .top-header {
-    top: 10px;
-    left: 10px;
-    right: 10px;
+    top: max(8px, env(safe-area-inset-top, 8px));
+    left: max(8px, env(safe-area-inset-left, 8px));
+    right: max(8px, env(safe-area-inset-right, 8px));
+    gap: 6px;
+    align-items: center;
   }
 
   .brand-card {
-    padding: 5px 10px;
+    padding: 5px 8px;
+    gap: 6px;
+    min-width: 0;
+    flex-shrink: 1;
+  }
+
+  .brand-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
   }
 
   .brand-title {
     font-size: 13px;
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+  }
+
+  /* Hide version pill on mobile header to save space (accessible in menu) */
+  .brand-card .version-pill {
+    display: none !important;
+  }
+
+  .brand-card .network-badge {
+    padding: 2px 5px;
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
   }
 
   .btn-quick-add {
-    padding: 6px 10px;
-    font-size: 11px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    flex-shrink: 0;
+    font-size: 0;
+  }
+
+  .btn-quick-add svg {
+    width: 16px;
+    height: 16px;
   }
 
   .btn-quick-text {
-    display: none; /* Icon-only on very compact mobile widths */
+    display: none !important; /* Strictly icon-only on mobile portrait to fit all buttons */
+  }
+
+  .btn-burger {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 7px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  .burger-bar {
+    width: 18px;
+    height: 2px;
   }
 
   .maplibregl-ctrl-top-right {
-    top: 60px !important;
-    right: 10px !important;
+    top: 54px !important;
+    right: 8px !important;
   }
 
   .maplibregl-ctrl-bottom-right {
     bottom: calc(75px + env(safe-area-inset-bottom, 0px)) !important;
-    right: 10px !important;
+    right: 8px !important;
   }
 
   /* Lower-Left Vertical Volume Slider (Raised to clear phone navigation buttons) */
@@ -1501,6 +1584,36 @@ body:not(.pin-drop-mode) .pin-drop-banner {
 
   .modal-actions button {
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand-card .network-badge {
+    display: none !important; /* Hide network badge in top header on narrowest phones; visible in drawer */
+  }
+
+  .brand-title {
+    font-size: 12px;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .btn-quick-add, .btn-burger {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 9px;
+  }
+
+  .btn-quick-add svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .burger-bar {
+    width: 15px;
   }
 }
 
