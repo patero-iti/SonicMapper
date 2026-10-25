@@ -1,10 +1,13 @@
 {
   "name": "SonicMapper",
-  "version": "0.9.0",
-  "stage": "Phase 4+: Dual Audio Layering & Multi-Waypoint Soundwalk Mixing",
-  "buildDate": "2026-09-20",
-  "commit": "phase-4-soundwalk-dual-layering-waypoint-mixer",
+  "version": "0.9.1",
+  "stage": "Phase 4+: Mobile Walking Audio Jitter & DAC Buffer Optimization",
+  "buildDate": "2026-10-19",
+  "commit": "mobile-walking-audio-jitter-crackle-mitigation",
   "features": [
+    "Mobile Walking Playback Engine: Decoupled High-Frequency Compass/Gyro Orientation via 25Hz Rate-Limiter and Angular Deadband to Eliminate Zipper Noise",
+    "Web Audio Mobile Buffer Resilience: Switched Mobile LatencyHint to 'playback' (~512-1024 samples) with Hardware Pipeline Pre-Priming to Prevent DAC Underrun Crackles",
+    "AudioParam Delta Caching: Cached Gain and StereoPanner Target Values to Stop Parameter Clashing and Rapid Discontinuities on Moving Coordinates",
     "Soundwalk Dual Audio Layering: Simultaneous Continuous Synthetic Ambience Bed (wind, water, birdsong, urban) + Primary Trail Audio File with Independent Master Faders",
     "Multi-Waypoint Audio Stem Mixer: Individual Waypoint Audio File Attachments, Procedural Synth Presets, Custom Trigger Radii, and Dedicated Volume Controls",
     "Interactive Soundwalk Playback Drawer Deck with Real-Time Synth/Audio Track Volume Faders and Primary Trail Audio Upload",

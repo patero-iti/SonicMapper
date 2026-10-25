@@ -212,13 +212,19 @@ export class FOABinauralDecoder {
    * @param {number} yawDegrees - Rotation angle in degrees
    */
   setRotation(yawDegrees) {
+    if (yawDegrees === null || isNaN(yawDegrees)) return;
+    const diff = Math.abs(yawDegrees - this.currentYawDegrees);
+    const angularDiff = Math.min(diff, 360 - diff);
+    // Suppress redundant calculations and parameter jitter if heading hasn't meaningfully changed
+    if (angularDiff < 0.75) return;
+
     this.currentYawDegrees = yawDegrees;
     const rad = (yawDegrees * Math.PI) / 180;
     const cosY = Math.cos(rad);
     const sinY = Math.sin(rad);
 
     const now = this.ctx.currentTime;
-    const timeConstant = 0.05;
+    const timeConstant = 0.08; // Smooth interpolation to eliminate clicks/zipper noise
 
     this.gainXX.gain.setTargetAtTime(cosY, now, timeConstant);
     this.gainYX.gain.setTargetAtTime(sinY, now, timeConstant);
@@ -231,8 +237,11 @@ export class FOABinauralDecoder {
    * @param {number} gain - 0.0 to 1.0
    */
   setGain(gain) {
+    const clamped = Math.max(0, gain);
+    if (Math.abs((this.lastScheduledGain ?? -1) - clamped) < 0.005) return;
+    this.lastScheduledGain = clamped;
     const now = this.ctx.currentTime;
-    this.gainNode.gain.setTargetAtTime(Math.max(0, gain), now, 0.05);
+    this.gainNode.gain.setTargetAtTime(clamped, now, 0.08);
   }
 
   /**

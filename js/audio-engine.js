@@ -27,7 +27,10 @@ export class AudioEngine {
   async unlock() {
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new AudioCtx({ latencyHint: 'interactive' });
+      const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent);
+      // On mobile devices, 'playback' provides a larger buffer (e.g. 512-1024 samples)
+      // preventing buffer starvation caused by GPS, sensor events, and MapLibre WebGL draws.
+      this.ctx = new AudioCtx({ latencyHint: isMobile ? 'playback' : 'interactive' });
 
       // Master Gain
       this.masterGain = this.ctx.createGain();
@@ -45,6 +48,15 @@ export class AudioEngine {
     if (this.ctx.state === 'suspended') {
       await this.ctx.resume();
     }
+
+    // Play a silent 1-sample buffer to firmly prime audio hardware on mobile
+    try {
+      const silentBuf = this.ctx.createBuffer(1, 1, 22050);
+      const src = this.ctx.createBufferSource();
+      src.buffer = silentBuf;
+      src.connect(this.ctx.destination);
+      src.start(0);
+    } catch (_) {}
 
     this.isUnlocked = true;
     return this.ctx.state === 'running';
@@ -885,13 +897,26 @@ export class AudioEngine {
    */
   updateListenerPosition(coords, heading = null) {
     const validCoords = GeoEngine.toCoordPair(coords);
+    let positionChanged = false;
     if (validCoords) {
-      this.listenerPosition = validCoords;
+      if (!this.listenerPosition || GeoEngine.getDistance(this.listenerPosition, validCoords) >= 0.4) {
+        this.listenerPosition = validCoords;
+        positionChanged = true;
+      }
     }
+    let headingChanged = false;
     if (heading !== null && !isNaN(heading)) {
-      this.listenerHeading = heading;
+      const normHeading = ((heading % 360) + 360) % 360;
+      const diff = Math.abs(normHeading - this.listenerHeading);
+      const angularDiff = Math.min(diff, 360 - diff);
+      if (angularDiff >= 0.75) {
+        this.listenerHeading = normHeading;
+        headingChanged = true;
+      }
     }
-    this.updateProximityMix();
+    if (positionChanged || headingChanged) {
+      this.updateProximityMix();
+    }
   }
 
   /**
@@ -899,7 +924,12 @@ export class AudioEngine {
    */
   updateListenerHeading(heading) {
     if (heading === null || isNaN(heading)) return;
-    this.listenerHeading = ((heading % 360) + 360) % 360;
+    const normHeading = ((heading % 360) + 360) % 360;
+    const diff = Math.abs(normHeading - this.listenerHeading);
+    const angularDiff = Math.min(diff, 360 - diff);
+    // Ignore minor compass noise (< 0.75°) to prevent parameter churn
+    if (angularDiff < 0.75) return;
+    this.listenerHeading = normHeading;
     this.updateProximityMix();
   }
 
@@ -911,7 +941,7 @@ export class AudioEngine {
     if (!this.ctx || !this.isUnlocked) return;
 
     const now = this.ctx.currentTime;
-    const timeConstant = 0.12;
+    const timeConstant = 0.08;
 
     for (const [, sound] of this.soundNodes) {
       // In Static Solo Audition mode
@@ -1012,17 +1042,26 @@ export class AudioEngine {
             if (wpDist < wpNode.radius) {
               const wpNorm = 1 - (wpDist / wpNode.radius);
               const wpGainVal = Math.pow(wpNorm, 1.4) * (wpNode.volume !== undefined ? wpNode.volume : 0.85);
-              wpNode.gainNode.gain.setTargetAtTime(wpGainVal, now, timeConstant);
+              if (Math.abs((wpNode.lastScheduledGain ?? -1) - wpGainVal) > 0.005) {
+                wpNode.lastScheduledGain = wpGainVal;
+                wpNode.gainNode.gain.setTargetAtTime(wpGainVal, now, timeConstant);
+              }
               wpNode.currentGain = wpGainVal;
 
               if (wpNode.pannerNode) {
                 const bearing = GeoEngine.getBearing(this.listenerPosition, wpNode.coords);
                 const relAngle = ((bearing - this.listenerHeading + 540) % 360) - 180;
                 const panVal = Math.sin((relAngle * Math.PI) / 180);
-                wpNode.pannerNode.pan.setTargetAtTime(panVal, now, timeConstant);
+                if (Math.abs((wpNode.lastScheduledPan ?? -999) - panVal) > 0.02) {
+                  wpNode.lastScheduledPan = panVal;
+                  wpNode.pannerNode.pan.setTargetAtTime(panVal, now, timeConstant);
+                }
               }
             } else {
-              wpNode.gainNode.gain.setTargetAtTime(0, now, timeConstant);
+              if ((wpNode.lastScheduledGain ?? 0) !== 0) {
+                wpNode.lastScheduledGain = 0;
+                wpNode.gainNode.gain.setTargetAtTime(0, now, timeConstant);
+              }
               wpNode.currentGain = 0;
             }
           }
@@ -1055,7 +1094,10 @@ export class AudioEngine {
         sound.ambisonicDecoder.setRotation(relAngle);
         sound.ambisonicDecoder.setGain(gain);
       } else if (sound.gainNode) {
-        sound.gainNode.gain.setTargetAtTime(gain, now, timeConstant);
+        if (Math.abs((sound.lastScheduledGain ?? -1) - gain) > 0.005) {
+          sound.lastScheduledGain = gain;
+          sound.gainNode.gain.setTargetAtTime(gain, now, timeConstant);
+        }
 
         // Standard Stereo Panning based on angle between listener and source
         const maxPanDist = sound.isPolygon || sound.isLineString ? 150 : (sound.radius * 1.5);
@@ -1063,7 +1105,10 @@ export class AudioEngine {
           const bearing = GeoEngine.getBearing(this.listenerPosition, refCoords);
           const relAngle = ((bearing - this.listenerHeading + 540) % 360) - 180;
           const panValue = Math.sin((relAngle * Math.PI) / 180);
-          sound.pannerNode.pan.setTargetAtTime(panValue, now, timeConstant);
+          if (Math.abs((sound.lastScheduledPan ?? -999) - panValue) > 0.02) {
+            sound.lastScheduledPan = panValue;
+            sound.pannerNode.pan.setTargetAtTime(panValue, now, timeConstant);
+          }
         }
       }
     }
