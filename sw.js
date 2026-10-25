@@ -2,7 +2,7 @@
  * SonicMapper Service Worker (PWA Offline Field Resilience)
  * Caches application shell, assets, audio files, and vector map tiles for offline nature fieldwalks.
  */
-const CACHE_NAME = 'sonicmapper-app-v0.9.0';
+const CACHE_NAME = 'sonicmapper-app-v0.9.1';
 const TILE_CACHE_NAME = 'sonicmapper-tiles-v1';
 
 const STATIC_ASSETS = [

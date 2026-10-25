@@ -1501,11 +1501,23 @@ export class UIController {
       }
 
       if (rawHeading !== null && !isNaN(rawHeading)) {
-        const smoothedHeading = GeoEngine.smoothHeading(this.currentHeading, rawHeading, 0.25);
+        // Walking-optimized low-pass filter (alpha = 0.12, deadband = 0.75°) absorbs footstep cadence
+        const smoothedHeading = GeoEngine.smoothHeading(this.currentHeading, rawHeading, 0.12, 0.75);
         this.currentHeading = smoothedHeading;
-        this.audio.updateListenerHeading(smoothedHeading);
-        this.map.setListenerHeading(smoothedHeading);
-        this.updateHUDHeading(smoothedHeading);
+
+        const now = performance.now();
+        // Throttle audio & map heading updates to ~25Hz (min 40ms interval) to protect audio thread from saturation
+        if (!this.lastHeadingUpdateTime || (now - this.lastHeadingUpdateTime) >= 40) {
+          const delta = Math.abs(smoothedHeading - (this.lastDispatchedHeading ?? smoothedHeading));
+          const angularDelta = Math.min(delta, 360 - delta);
+          if (this.lastDispatchedHeading === undefined || angularDelta >= 1.0) {
+            this.lastDispatchedHeading = smoothedHeading;
+            this.lastHeadingUpdateTime = now;
+            this.audio.updateListenerHeading(smoothedHeading);
+            this.map.setListenerHeading(smoothedHeading);
+            this.updateHUDHeading(smoothedHeading);
+          }
+        }
       }
     };
 
@@ -1534,6 +1546,8 @@ export class UIController {
       window.removeEventListener('deviceorientationabsolute', this.orientationHandler, true);
       window.removeEventListener('deviceorientation', this.orientationHandler, true);
       this.orientationHandler = null;
+      this.lastDispatchedHeading = undefined;
+      this.lastHeadingUpdateTime = 0;
     }
   }
 

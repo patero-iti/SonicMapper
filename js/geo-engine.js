@@ -203,15 +203,11 @@ export class GeoEngine {
 
     const dist = this.getDistance(prevCoords, newCoords);
     if (dist < minDeltaMeters) {
-      // Stationary GPS noise / wander
-      const alpha = 0.15;
-      return [
-        prevCoords[0] + (newCoords[0] - prevCoords[0]) * alpha,
-        prevCoords[1] + (newCoords[1] - prevCoords[1]) * alpha
-      ];
+      // Stationary GPS noise / wander - freeze position completely to stop proximity fluttering
+      return prevCoords;
     } else if (dist < 15) {
-      // Normal walking movement
-      const alpha = 0.45;
+      // Normal walking movement - smooth transition
+      const alpha = 0.35;
       return [
         prevCoords[0] + (newCoords[0] - prevCoords[0]) * alpha,
         prevCoords[1] + (newCoords[1] - prevCoords[1]) * alpha
@@ -224,14 +220,20 @@ export class GeoEngine {
 
   /**
    * Smooths compass heading degrees (0-360°) handling angular wraparound across the 0°/360° north boundary
+   * with deadband filtering to prevent step-induced micro-tremors from shaking the stereo field.
    */
-  static smoothHeading(prevHeading, newHeading, alpha = 0.25) {
+  static smoothHeading(prevHeading, newHeading, alpha = 0.12, deadbandDegrees = 0.75) {
     if (prevHeading === null || isNaN(prevHeading)) return newHeading;
     if (newHeading === null || isNaN(newHeading)) return prevHeading;
 
     let diff = newHeading - prevHeading;
     while (diff < -180) diff += 360;
     while (diff > 180) diff -= 360;
+
+    // Suppress angular changes smaller than the deadband threshold
+    if (Math.abs(diff) < deadbandDegrees) {
+      return prevHeading;
+    }
 
     const smoothed = prevHeading + diff * alpha;
     return ((smoothed % 360) + 360) % 360;
